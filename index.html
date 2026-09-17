@@ -13,12 +13,12 @@
             --bg-main: #0b1329;
             --bg-card: #1c2541;
             --bg-card-hover: #232d4f;
-            --border-card: rgba(255, 255, 255, 0.08);
+            --border-card: rgba(255, 255, 255, 0.12);
             --accent-blue: #38bdf8;
             --accent-green: #22c55e;
             --accent-red: #ef4444;
             --accent-amber: #f59e0b;
-            --text-main: #f8fafc;
+            --text-main: #ffffff;
             --text-muted: #94a3b8;
         }
 
@@ -29,7 +29,7 @@
             min-height: 100vh;
         }
 
-        /* Overlay Login */
+        /* Login Overlay */
         #loginOverlay {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -48,43 +48,60 @@
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
         }
 
-        /* KPI Cards Fixes */
+        /* KPI Cards High-Contrast Styling */
         .kpi-card {
             background: var(--bg-card);
             border: 1px solid var(--border-card);
             border-radius: 14px;
-            padding: 1.25rem;
+            padding: 1.25rem 1rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-            transition: all 0.2s ease;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.35);
+            transition: all 0.25 ease;
         }
 
         .kpi-card:hover {
-            transform: translateY(-2px);
-            border-color: rgba(56, 189, 248, 0.3);
+            transform: translateY(-3px);
+            border-color: var(--accent-blue);
+        }
+
+        .kpi-title {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.35rem;
+            display: block;
+        }
+
+        .kpi-value {
+            color: #ffffff;
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin: 0;
         }
 
         .kpi-icon {
-            width: 52px;
-            height: 52px;
+            width: 48px;
+            height: 48px;
             border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             flex-shrink: 0;
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        .icon-blue { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
-        .icon-green { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
-        .icon-red { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
-        .icon-amber { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+        .icon-blue { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
+        .icon-green { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .icon-red { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .icon-amber { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
 
-        /* Custom Tabs UI */
+        /* Navigation Tabs */
         .nav-tabs-custom {
-            border-bottom: 2px solid rgba(255, 255, 255, 0.05);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.08);
             gap: 0.5rem;
         }
 
@@ -100,7 +117,7 @@
 
         .nav-tabs-custom .nav-link:hover {
             color: var(--accent-blue);
-            background: rgba(255, 255, 255, 0.02);
+            background: rgba(255, 255, 255, 0.03);
         }
 
         .nav-tabs-custom .nav-link.active {
@@ -109,16 +126,15 @@
             border-bottom: 3px solid var(--accent-blue);
         }
 
-        /* Chart & Section Cards */
+        /* Container & Tables */
         .section-card {
             background: var(--bg-card);
             border: 1px solid var(--border-card);
             border-radius: 16px;
             padding: 1.5rem;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.25);
         }
 
-        /* Full Data Table Styling */
         .table-responsive-container {
             max-height: 600px;
             overflow-y: auto;
@@ -148,7 +164,6 @@
             padding: 0.85rem 1rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             vertical-align: middle;
-            font-size: 0.95rem;
         }
 
         .table-custom-dark tbody tr:hover {
@@ -156,7 +171,7 @@
         }
 
         .badge-critical {
-            background: rgba(239, 68, 68, 0.2);
+            background: rgba(239, 68, 68, 0.25);
             color: #fca5a5;
             border: 1px solid #ef4444;
             padding: 0.4em 0.8em;
@@ -164,7 +179,7 @@
         }
 
         .badge-warning-custom {
-            background: rgba(245, 158, 11, 0.2);
+            background: rgba(245, 158, 11, 0.25);
             color: #fde68a;
             border: 1px solid #f59e0b;
             padding: 0.4em 0.8em;
@@ -174,7 +189,7 @@
 </head>
 <body>
 
-    <!-- Embedded Login Modal -->
+    <!-- Login Modal Overlay -->
     <div id="loginOverlay">
         <div class="login-card">
             <div class="text-center mb-4">
@@ -199,7 +214,7 @@
         </div>
     </div>
 
-    <!-- Header Navbar -->
+    <!-- Top Navbar -->
     <nav class="navbar navbar-expand-lg border-bottom border-secondary border-opacity-25 py-3">
         <div class="container-fluid px-4">
             <a class="navbar-brand d-flex align-items-center gap-2 fw-bold text-info fs-4" href="#">
@@ -216,7 +231,7 @@
     <!-- Main Container -->
     <div class="container-fluid px-4 py-4">
 
-        <!-- Title Section -->
+        <!-- Header Title -->
         <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
             <div>
                 <h3 class="fw-bold mb-1">التقرير التحليلي الشامل للانحرافات المالية والميزانية</h3>
@@ -227,13 +242,13 @@
             </span>
         </div>
 
-        <!-- Corrected KPI Grid with Visual Icons -->
+        <!-- KPI Cards Grid (Clear Text & High Contrast) -->
         <div class="row g-3 mb-4">
             <div class="col-md-4 col-xl-2">
                 <div class="kpi-card">
                     <div>
-                        <span class="text-muted small d-block mb-1">إجمالي المصروفات</span>
-                        <h5 class="fw-bold text-light mb-0" id="kpiSpend">0 ج.م</h5>
+                        <span class="kpi-title">إجمالي المصروفات</span>
+                        <h5 class="kpi-value" id="kpiSpend">0 ج.م</h5>
                     </div>
                     <div class="kpi-icon icon-blue"><i class="fa-solid fa-wallet"></i></div>
                 </div>
@@ -242,8 +257,8 @@
             <div class="col-md-4 col-xl-2">
                 <div class="kpi-card">
                     <div>
-                        <span class="text-muted small d-block mb-1">الميزانية المعتمدة</span>
-                        <h5 class="fw-bold text-light mb-0" id="kpiBudget">0 ج.م</h5>
+                        <span class="kpi-title">الميزانية المعتمدة</span>
+                        <h5 class="kpi-value" id="kpiBudget">0 ج.م</h5>
                     </div>
                     <div class="kpi-icon icon-green"><i class="fa-solid fa-vault"></i></div>
                 </div>
@@ -252,8 +267,8 @@
             <div class="col-md-4 col-xl-2">
                 <div class="kpi-card">
                     <div>
-                        <span class="text-muted small d-block mb-1">صافي الانحراف</span>
-                        <h5 class="fw-bold text-danger mb-0" id="kpiVariance">0 ج.م</h5>
+                        <span class="kpi-title">صافي الانحراف</span>
+                        <h5 class="kpi-value text-danger" id="kpiVariance">0 ج.م</h5>
                     </div>
                     <div class="kpi-icon icon-red"><i class="fa-solid fa-chart-line-down"></i></div>
                 </div>
@@ -262,8 +277,8 @@
             <div class="col-md-4 col-xl-2">
                 <div class="kpi-card">
                     <div>
-                        <span class="text-muted small d-block mb-1">تجاوزات حرجة</span>
-                        <h5 class="fw-bold text-danger mb-0" id="kpiCritical">0</h5>
+                        <span class="kpi-title">تجاوزات حرجة</span>
+                        <h5 class="kpi-value text-danger" id="kpiCritical">0</h5>
                     </div>
                     <div class="kpi-icon icon-red"><i class="fa-solid fa-triangle-exclamation"></i></div>
                 </div>
@@ -272,8 +287,8 @@
             <div class="col-md-4 col-xl-2">
                 <div class="kpi-card">
                     <div>
-                        <span class="text-muted small d-block mb-1">إنذار مبكر</span>
-                        <h5 class="fw-bold text-warning mb-0" id="kpiWarning">0</h5>
+                        <span class="kpi-title">إنذار مبكر</span>
+                        <h5 class="kpi-value text-warning" id="kpiWarning">0</h5>
                     </div>
                     <div class="kpi-icon icon-amber"><i class="fa-solid fa-bell"></i></div>
                 </div>
@@ -282,15 +297,15 @@
             <div class="col-md-4 col-xl-2">
                 <div class="kpi-card">
                     <div>
-                        <span class="text-muted small d-block mb-1">إجمالي المرفوضات</span>
-                        <h5 class="fw-bold text-danger mb-0" id="kpiRejected">0</h5>
+                        <span class="kpi-title">إجمالي المرفوضات</span>
+                        <h5 class="kpi-value text-danger" id="kpiRejected">0</h5>
                     </div>
                     <div class="kpi-icon icon-red"><i class="fa-solid fa-ban"></i></div>
                 </div>
             </div>
         </div>
 
-        <!-- Professional Custom Tabs -->
+        <!-- Custom Tabs -->
         <ul class="nav nav-tabs nav-tabs-custom mb-4" id="mainTabs" role="tablist">
             <li class="nav-item">
                 <button class="nav-link active" id="alerts-tab" data-bs-toggle="tab" data-bs-target="#alertsTab" type="button">
@@ -360,7 +375,7 @@
                     </div>
                     <div class="col-lg-4">
                         <div class="section-card">
-                            <h5 class="fw-bold mb-3"><i class="fa-solid fa-chart-pie text-warning me-2"></i>نسبة التوزيع للأنضباط المالي</h5>
+                            <h5 class="fw-bold mb-3"><i class="fa-solid fa-chart-pie text-warning me-2"></i>نسبة التوزيع للانضباط المالي</h5>
                             <canvas id="alertPieChart" height="280"></canvas>
                         </div>
                     </div>
@@ -427,7 +442,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let ccChartInstance, alertPieChartInstance, smartChartInstance;
-        let globalVarianceData = [];
 
         window.onload = function() {
             if (localStorage.getItem("isLoggedIn") === "true") {
@@ -474,8 +488,6 @@
                 const varianceData = await fetchAndParseExcel('Final_Budget_Variance_Report.xlsx');
                 const rejectedAccounts = await fetchAndParseExcel('Rejected_Accounts.xlsx').catch(() => []);
                 const rejectedCC = await fetchAndParseExcel('Rejected_CostCenters.xlsx').catch(() => []);
-
-                globalVarianceData = varianceData;
 
                 const badge = document.getElementById('statusBadge');
                 badge.innerHTML = `<i class="fa-solid fa-check-circle me-1"></i> تم فحص ${varianceData.length} سجلاً بالكامل`;
@@ -539,7 +551,6 @@
             renderRejectedTable(rejectedCC, 'rejectedCCBody');
         }
 
-        // Render ALL Rows without slicing
         function renderFullAlertsTable(data) {
             const body = document.getElementById('fullAlertsBody');
             body.innerHTML = '';
