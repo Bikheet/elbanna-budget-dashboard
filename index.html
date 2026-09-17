@@ -1,70 +1,398 @@
-<!-- KPI Cards Grid (العنوان فوق الأيقونة مباشرة باحترافية) -->
-<div class="row g-3 mb-4">
-    
-    <!-- 1. إجمالي المصروفات (الأزرق) -->
-    <div class="col-md-4 col-xl-2">
-        <div class="kpi-card text-center p-3">
-            <span class="kpi-title text-info fw-bold mb-2 d-block">إجمالي المصروفات</span>
-            <div class="kpi-icon icon-blue mx-auto mb-2">
-                <i class="fa-solid fa-wallet"></i>
-            </div>
-            <h5 class="kpi-value text-white fw-bold mb-0" id="kpiSpend">11,632,694.85 ج.م</h5>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Budget Analyzer - Executive Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --bg-main: #0b1329;
+            --bg-card: #1c2541;
+            --bg-card-hover: #232d4f;
+            --border-card: rgba(255, 255, 255, 0.12);
+            --accent-blue: #38bdf8;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+            --accent-amber: #f59e0b;
+            --text-main: #ffffff;
+            --text-muted: #94a3b8;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            direction: rtl;
+            padding: 20px;
+        }
+
+        /* Login Overlay */
+        #loginOverlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(11, 19, 41, 0.96);
+            z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .login-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 16px;
+            padding: 2.5rem;
+            width: 100%; max-width: 420px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            text-align: center;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            background: #111827;
+            border: 1px solid #4b5563;
+            color: #fff;
+            border-radius: 8px;
+        }
+
+        .btn-custom {
+            width: 100%;
+            padding: 10px;
+            background: var(--accent-blue);
+            color: #0b1329;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        /* Header */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 15px;
+        }
+
+        /* KPI Cards Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 16px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .kpi-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .kpi-icon {
+            width: 45px;
+            height: 45px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            margin: 0 auto 10px auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .icon-blue { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
+        .icon-green { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+        .icon-red { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+        .icon-amber { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+
+        .kpi-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        /* Tables & Sections */
+        .section-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            max-height: 500px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            color: #fff;
+            background: #111827;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: right;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        th {
+            background: #1f2937;
+            color: var(--accent-blue);
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover { background: var(--bg-card-hover); }
+
+        .badge {
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .badge-danger { background: rgba(239,68,68,0.2); color: #fca5a5; border: 1px solid #ef4444; }
+        .badge-warning { background: rgba(245,158,11,0.2); color: #fde68a; border: 1px solid #f59e0b; }
+    </style>
+</head>
+<body>
+
+    <!-- Login Modal Overlay -->
+    <div id="loginOverlay">
+        <div class="login-card">
+            <h3 style="margin-bottom: 10px;">بوابة تحليلات الميزانية</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">تسجيل الدخول للنظام المالي</p>
+            <div id="loginError" style="color: var(--accent-red); margin-bottom: 10px; display: none;">اسم المستخدم أو كلمة المرور غير صحيحة</div>
+            <form onsubmit="handleEmbeddedLogin(event)">
+                <input type="text" id="loginUser" class="form-control" placeholder="اسم المستخدم (admin)" required>
+                <input type="password" id="loginPass" class="form-control" placeholder="كلمة المرور (123456)" required>
+                <button type="submit" class="btn-custom">تسجيل الدخول</button>
+            </form>
         </div>
     </div>
 
-    <!-- 2. الميزانية المعتمدة (الأخضر) -->
-    <div class="col-md-4 col-xl-2">
-        <div class="kpi-card text-center p-3">
-            <span class="kpi-title text-success fw-bold mb-2 d-block">الميزانية المعتمدة</span>
-            <div class="kpi-icon icon-green mx-auto mb-2">
-                <i class="fa-solid fa-vault"></i>
-            </div>
-            <h5 class="kpi-value text-white fw-bold mb-0" id="kpiBudget">8,537,491.43 ج.م</h5>
+    <!-- Top Header -->
+    <div class="dashboard-header">
+        <div>
+            <h2>التقرير التحليلي الشامل للانحرافات المالية والميزانية</h2>
+            <p style="color: var(--text-muted); font-size: 0.85rem;">محرك معالجة البيانات (KNIME Automation Engine)</p>
+        </div>
+        <div>
+            <span id="statusBadge" class="badge" style="background: rgba(34,197,94,0.2); color: #22c55e; border: 1px solid #22c55e;">جاري جلب البيانات...</span>
+            <button onclick="logout()" style="background: transparent; border: 1px solid var(--accent-red); color: var(--accent-red); padding: 5px 15px; border-radius: 20px; cursor: pointer; margin-right: 10px;">خروج</button>
         </div>
     </div>
 
-    <!-- 3. صافي الانحراف (الأحمر الداكن) -->
-    <div class="col-md-4 col-xl-2">
-        <div class="kpi-card text-center p-3">
-            <span class="kpi-title text-danger fw-bold mb-2 d-block">صافي الانحراف</span>
-            <div class="kpi-icon icon-red mx-auto mb-2">
-                <i class="fa-solid fa-chart-line-down"></i>
-            </div>
-            <h5 class="kpi-value text-danger fw-bold mb-0" id="kpiVariance">-3,095,203.42 ج.م</h5>
+    <!-- KPI Cards Grid -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <span class="kpi-title" style="color: var(--accent-blue);">إجمالي المصروفات</span>
+            <div class="kpi-icon icon-blue">💰</div>
+            <h5 class="kpi-value" id="kpiSpend">0 ج.م</h5>
+        </div>
+
+        <div class="kpi-card">
+            <span class="kpi-title" style="color: var(--accent-green);">الميزانية المعتمدة</span>
+            <div class="kpi-icon icon-green">🏛️</div>
+            <h5 class="kpi-value" id="kpiBudget">0 ج.م</h5>
+        </div>
+
+        <div class="kpi-card">
+            <span class="kpi-title" style="color: var(--accent-red);">صافي الانحراف</span>
+            <div class="kpi-icon icon-red">📉</div>
+            <h5 class="kpi-value" style="color: var(--accent-red);" id="kpiVariance">0 ج.م</h5>
+        </div>
+
+        <div class="kpi-card">
+            <span class="kpi-title" style="color: var(--accent-red);">تجاوزات حرجة</span>
+            <div class="kpi-icon icon-red">⚠️</div>
+            <h5 class="kpi-value" style="color: var(--accent-red);" id="kpiCritical">0</h5>
+        </div>
+
+        <div class="kpi-card">
+            <span class="kpi-title" style="color: var(--accent-amber);">إنذار مبكر</span>
+            <div class="kpi-icon icon-amber">🔔</div>
+            <h5 class="kpi-value" style="color: var(--accent-amber);" id="kpiWarning">0</h5>
+        </div>
+
+        <div class="kpi-card">
+            <span class="kpi-title" style="color: var(--accent-red);">إجمالي المرفوضات</span>
+            <div class="kpi-icon icon-red">🚫</div>
+            <h5 class="kpi-value" style="color: var(--accent-red);" id="kpiRejected">0</h5>
         </div>
     </div>
 
-    <!-- 4. تجاوزات حرجة (الأحمر التحذيري) -->
-    <div class="col-md-4 col-xl-2">
-        <div class="kpi-card text-center p-3">
-            <span class="kpi-title text-danger fw-bold mb-2 d-block">تجاوزات حرجة</span>
-            <div class="kpi-icon icon-red mx-auto mb-2">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-            </div>
-            <h5 class="kpi-value text-danger fw-bold mb-0" id="kpiCritical">167</h5>
+    <!-- Main Table Section -->
+    <div class="section-card">
+        <h3 style="margin-bottom: 15px; color: var(--accent-amber);">جميع التجاوزات والانحرافات المالية المسجلة</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>مركز التكلفة</th>
+                        <th>كود الحساب</th>
+                        <th>المصروف الفعلي</th>
+                        <th>الميزانية المعتمدة</th>
+                        <th>الانحراف المالي</th>
+                        <th>الحالة</th>
+                    </tr>
+                </thead>
+                <tbody id="fullAlertsBody">
+                    <tr><td colspan="7" style="text-align: center;">جاري تحميل السجلات...</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- 5. إنذار مبكر (البرتقالي/الأصفر) -->
-    <div class="col-md-4 col-xl-2">
-        <div class="kpi-card text-center p-3">
-            <span class="kpi-title text-warning fw-bold mb-2 d-block">إنذار مبكر</span>
-            <div class="kpi-icon icon-amber mx-auto mb-2">
-                <i class="fa-solid fa-bell"></i>
-            </div>
-            <h5 class="kpi-value text-warning fw-bold mb-0" id="kpiWarning">2</h5>
-        </div>
-    </div>
+    <script>
+        window.onload = function() {
+            if (localStorage.getItem("isLoggedIn") === "true") {
+                document.getElementById('loginOverlay').style.display = 'none';
+                loadDashboardData();
+            } else {
+                document.getElementById('loginOverlay').style.display = 'flex';
+            }
+        };
 
-    <!-- 6. إجمالي المرفوضات (الأحمر - حظر) -->
-    <div class="col-md-4 col-xl-2">
-        <div class="kpi-card text-center p-3">
-            <span class="kpi-title text-danger fw-bold mb-2 d-block">إجمالي المرفوضات</span>
-            <div class="kpi-icon icon-red mx-auto mb-2">
-                <i class="fa-solid fa-ban"></i>
-            </div>
-            <h5 class="kpi-value text-danger fw-bold mb-0" id="kpiRejected">45</h5>
-        </div>
-    </div>
+        function handleEmbeddedLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('loginUser').value.trim();
+            const p = document.getElementById('loginPass').value.trim();
 
-</div>
+            if ((u === "admin" || u === "dr.mohamed") && p === "123456") {
+                localStorage.setItem("isLoggedIn", "true");
+                document.getElementById('loginOverlay').style.display = 'none';
+                loadDashboardData();
+            } else {
+                document.getElementById('loginError').style.display = 'block';
+            }
+        }
+
+        function logout() {
+            localStorage.clear();
+            location.reload();
+        }
+
+        async function fetchAndParseExcel(filename) {
+            const response = await fetch(filename);
+            if (!response.ok) throw new Error(`File loading error ${response.status}`);
+            const arrayBuffer = await response.arrayBuffer();
+            const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+            return XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+        }
+
+        async function loadDashboardData() {
+            try {
+                const varianceData = await fetchAndParseExcel('Final_Budget_Variance_Report.xlsx');
+                const rejectedAccounts = await fetchAndParseExcel('Rejected_Accounts.xlsx').catch(() => []);
+                const rejectedCC = await fetchAndParseExcel('Rejected_CostCenters.xlsx').catch(() => []);
+
+                document.getElementById('statusBadge').innerText = `تم فحص ${varianceData.length} سجلاً بنجاح`;
+                processDashboard(varianceData, rejectedAccounts, rejectedCC);
+            } catch (err) {
+                console.error(err);
+                document.getElementById('statusBadge').style.background = 'rgba(239,68,68,0.2)';
+                document.getElementById('statusBadge').style.color = '#ef4444';
+                document.getElementById('statusBadge').style.borderColor = '#ef4444';
+                document.getElementById('statusBadge').innerText = 'تعذر قراءة ملفات البيانات';
+            }
+        }
+
+        function getVal(row, keys) {
+            for (let k of keys) {
+                if (row[k] !== undefined) return row[k];
+            }
+            return 0;
+        }
+
+        function processDashboard(varianceData, rejectedAccounts, rejectedCC) {
+            let totalSpend = 0, totalBudget = 0;
+            let criticalCount = 0, warningCount = 0;
+
+            varianceData.forEach(row => {
+                const spend = parseFloat(getVal(row, ['Spend', 'المصروف', 'قيمة المصروف', 'Amount'])) || 0;
+                const budget = parseFloat(getVal(row, ['Budget', 'الميزانية', 'الميزانية المعتمدة'])) || 0;
+                const status = (row['Status'] || row['الحالة'] || '').toString().toLowerCase();
+
+                totalSpend += spend;
+                totalBudget += budget;
+
+                if (status.includes('critical') || status.includes('تجاوز') || (budget > 0 && spend > budget * 1.2)) criticalCount++;
+                else if (status.includes('warning') || status.includes('إنذار') || (budget > 0 && spend > budget)) warningCount++;
+            });
+
+            document.getElementById('kpiSpend').innerText = totalSpend.toLocaleString('en-US', {maximumFractionDigits: 2}) + ' ج.م';
+            document.getElementById('kpiBudget').innerText = totalBudget.toLocaleString('en-US', {maximumFractionDigits: 2}) + ' ج.م';
+            
+            const netVariance = totalSpend - totalBudget;
+            document.getElementById('kpiVariance').innerText = (netVariance > 0 ? '-' : '+') + Math.abs(netVariance).toLocaleString('en-US', {maximumFractionDigits: 2}) + ' ج.م';
+            
+            document.getElementById('kpiCritical').innerText = criticalCount;
+            document.getElementById('kpiWarning').innerText = warningCount;
+            document.getElementById('kpiRejected').innerText = rejectedAccounts.length + rejectedCC.length;
+
+            renderTable(varianceData);
+        }
+
+        function renderTable(data) {
+            const body = document.getElementById('fullAlertsBody');
+            body.innerHTML = '';
+
+            const filtered = data.filter(r => {
+                const spend = parseFloat(getVal(r, ['Spend', 'المصروف', 'قيمة المصروف'])) || 0;
+                const budget = parseFloat(getVal(r, ['Budget', 'الميزانية', 'الميزانية المعتمدة'])) || 0;
+                return spend > budget || budget === 0;
+            });
+
+            if (filtered.length === 0) {
+                body.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--accent-green);">لا توجد تجاوزات مالية</td></tr>';
+                return;
+            }
+
+            filtered.forEach((r, idx) => {
+                const cc = r['CostCenter'] || r['مركز_التكلفة'] || r['مركز التكلفة'] || '-';
+                const acc = r['Account'] || r['الحساب'] || r['كود الحساب'] || '-';
+                const spend = parseFloat(getVal(r, ['Spend', 'المصروف', 'قيمة المصروف'])) || 0;
+                const budget = parseFloat(getVal(r, ['Budget', 'الميزانية', 'الميزانية المعتمدة'])) || 0;
+                const variance = spend - budget;
+
+                const isCritical = budget > 0 && spend > budget * 1.2;
+                const badgeClass = isCritical ? 'badge-danger' : 'badge-warning';
+                const badgeText = isCritical ? 'تجاوز خطير' : 'تجاوز الميزانية';
+
+                body.innerHTML += `
+                    <tr>
+                        <td>${idx + 1}</td>
+                        <td><strong>${cc}</strong></td>
+                        <td><code>${acc}</code></td>
+                        <td>${spend.toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</td>
+                        <td>${budget.toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</td>
+                        <td style="color: var(--accent-red); font-weight: bold;">-${variance.toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</td>
+                        <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+                    </tr>
+                `;
+            });
+        }
+    </script>
+</body>
+</html>
