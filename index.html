@@ -140,7 +140,7 @@
                 <p class="text-secondary small mb-0">مربوط مباشرة بمخرجات ملفات الاكسيل (KNIME Engine) | تحديث تلقائي</p>
             </div>
             <div>
-                <span class="badge bg-success px-3 py-2 fs-6" id="statusBadge"><i class="fa-solid fa-sync fa-spin me-1"></i> جاري تحميل الملفات...</span>
+                <span class="badge bg-primary px-3 py-2 fs-6" id="statusBadge"><i class="fa-solid fa-sync fa-spin me-1"></i> جاري تحميل الملفات...</span>
             </div>
         </div>
 
@@ -351,6 +351,7 @@
 
         async function fetchAndParseExcel(filename) {
             const response = await fetch(filename);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const arrayBuffer = await response.arrayBuffer();
             const data = new Uint8Array(arrayBuffer);
             const workbook = XLSX.read(data, { type: 'array' });
@@ -361,17 +362,27 @@
         async function loadDashboardData() {
             try {
                 const varianceData = await fetchAndParseExcel('Final_Budget_Variance_Report.xlsx');
-                const rejectedAccounts = await fetchAndParseExcel('Rejected_Accounts.xlsx');
-                const rejectedCC = await fetchAndParseExcel('Rejected_CostCenters.xlsx');
+                const rejectedAccounts = await fetchAndParseExcel('Rejected_Accounts.xlsx').catch(() => []);
+                const rejectedCC = await fetchAndParseExcel('Rejected_CostCenters.xlsx').catch(() => []);
 
-                document.getElementById('statusBadge').innerHTML = `<i class="fa-solid fa-check-circle me-1"></i> تم فحص ${varianceData.length} سجلاً بنجاح`;
+                const badge = document.getElementById('statusBadge');
+                badge.className = "badge bg-success px-3 py-2 fs-6";
+                badge.innerHTML = `<i class="fa-solid fa-check-circle me-1"></i> تم فحص ${varianceData.length} سجلاً بنجاح`;
 
                 processDashboard(varianceData, rejectedAccounts, rejectedCC);
             } catch (err) {
                 console.error("Error loading Excel files:", err);
-                document.getElementById('statusBadge').className = "badge bg-danger px-3 py-2 fs-6";
-                document.getElementById('statusBadge').innerHTML = `<i class="fa-solid fa-circle-xmark me-1"></i> خطأ في قراءة ملفات الإكسيل`;
+                const badge = document.getElementById('statusBadge');
+                badge.className = "badge bg-danger px-3 py-2 fs-6";
+                badge.innerHTML = `<i class="fa-solid fa-circle-xmark me-1"></i> تعذر قراءة ملفات الإكسيل - تأكد من وجودها بجانب الصفحة`;
             }
+        }
+
+        function getVal(row, keys) {
+            for (let k of keys) {
+                if (row[k] !== undefined) return row[k];
+            }
+            return 0;
         }
 
         function processDashboard(varianceData, rejectedAccounts, rejectedCC) {
@@ -385,9 +396,9 @@
             const ccMap = {};
 
             varianceData.forEach(row => {
-                const spend = parseFloat(row['Spend'] || row['المصروف'] || 0);
-                const budget = parseFloat(row['Budget'] || row['الميزانية'] || 0);
-                const cc = row['CostCenter'] || row['مركز_التكلفة'] || 'غير محدد';
+                const spend = parseFloat(getVal(row, ['Spend', 'المصروف', 'قيمة المصروف', 'Amount'])) || 0;
+                const budget = parseFloat(getVal(row, ['Budget', 'الميزانية', 'الميزانية المعتمدة'])) || 0;
+                const cc = row['CostCenter'] || row['مركز_التكلفة'] || row['مركز التكلفة'] || 'غير محدد';
                 const status = (row['Status'] || row['الحالة'] || '').toString().toLowerCase();
 
                 totalSpend += spend;
@@ -510,21 +521,21 @@
             body.innerHTML = '';
 
             const filtered = varianceData.filter(r => {
-                const spend = parseFloat(r['Spend'] || r['المصروف'] || 0);
-                const budget = parseFloat(r['Budget'] || r['الميزانية'] || 0);
+                const spend = parseFloat(getVal(r, ['Spend', 'المصروف', 'قيمة المصروف'])) || 0;
+                const budget = parseFloat(getVal(r, ['Budget', 'الميزانية', 'الميزانية المعتمدة'])) || 0;
                 return budget > 0 && spend > budget;
             }).slice(0, 7);
 
             if (filtered.length === 0) {
-                body.innerHTML = '<tr><td colspan="6" class="text-center text-success">لا توجد تجاوزات حادة حرجـة حالياً</td></tr>';
+                body.innerHTML = '<tr><td colspan="6" class="text-center text-success">لا توجد تجاوزات حادة حرجة حالياً</td></tr>';
                 return;
             }
 
             filtered.forEach(r => {
-                const cc = r['CostCenter'] || r['مركز_التكلفة'] || '-';
-                const acc = r['Account'] || r['الحساب'] || '-';
-                const spend = parseFloat(r['Spend'] || r['المصروف'] || 0);
-                const budget = parseFloat(r['Budget'] || r['الميزانية'] || 0);
+                const cc = r['CostCenter'] || r['مركز_التكلفة'] || r['مركز التكلفة'] || '-';
+                const acc = r['Account'] || r['الحساب'] || r['كود الحساب'] || '-';
+                const spend = parseFloat(getVal(r, ['Spend', 'المصروف', 'قيمة المصروف'])) || 0;
+                const budget = parseFloat(getVal(r, ['Budget', 'الميزانية', 'الميزانية المعتمدة'])) || 0;
                 const variance = spend - budget;
 
                 body.innerHTML += `
@@ -552,9 +563,9 @@
             data.slice(0, 5).forEach(r => {
                 const keys = Object.keys(r);
                 const id = r[keys[0]] || '-';
-                const cc = r['CostCenter'] || r['مركز_التكلفة'] || r[keys[1]] || '-';
-                const acc = r['Account'] || r['الحساب'] || r[keys[2]] || '-';
-                const val = parseFloat(r['Spend'] || r['Amount'] || r['المصروف'] || r[keys[3]] || 0);
+                const cc = r['CostCenter'] || r['مركز_التكلفة'] || r['مركز التكلفة'] || r[keys[1]] || '-';
+                const acc = r['Account'] || r['الحساب'] || r['كود الحساب'] || r[keys[2]] || '-';
+                const val = parseFloat(getVal(r, ['Spend', 'Amount', 'المصروف', 'قيمة المصروف'])) || 0;
 
                 body.innerHTML += `
                     <tr>
@@ -566,6 +577,14 @@
                 `;
             });
         }
+
+        // Fix Bootstrap tab switching chart resize issue
+        document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', () => {
+                if (smartChartInstance) smartChartInstance.resize();
+                if (ccChartInstance) ccChartInstance.resize();
+            });
+        });
 
         window.onload = loadDashboardData;
     </script>
