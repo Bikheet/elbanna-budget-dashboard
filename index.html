@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enterprise Budget Analyzer - Full Dynamic Dashboard</title>
+    <title>Enterprise Budget Analyzer & Smart Forecast</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -23,7 +23,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background-color: var(--bg-main); color: var(--text-main); font-family: system-ui, -apple-system, sans-serif; padding: 20px; direction: rtl; }
 
-        /* Login Overlay Modal */
+        /* Login Overlay */
         #loginOverlay {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -71,7 +71,7 @@
         .kpi-value { font-size: 1rem; font-weight: 700; }
 
         .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
-        .chart-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; padding: 15px; height: 280px; position: relative; }
+        .chart-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; padding: 15px; height: 300px; position: relative; }
 
         .tab-buttons { display: flex; gap: 10px; margin-bottom: 12px; }
         .tab-btn { background: var(--bg-card); border: 1px solid var(--border-card); color: var(--text-muted); padding: 8px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; }
@@ -79,7 +79,8 @@
 
         .section-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; padding: 15px; }
         
-        .table-container { width: 100%; overflow-y: auto; max-height: 550px; border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; }
+        /* Scroll Configuration */
+        .table-container { width: 100%; overflow-y: auto; max-height: 500px; border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; }
         .table-container::-webkit-scrollbar { width: 8px; }
         .table-container::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 4px; }
         
@@ -91,11 +92,12 @@
         .badge { padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
         .badge-danger { background: rgba(239,68,68,0.2); color: #fca5a5; border: 1px solid #ef4444; }
         .badge-warning { background: rgba(245,158,11,0.2); color: #fde68a; border: 1px solid #f59e0b; }
+        .badge-success { background: rgba(34,197,94,0.2); color: #86efac; border: 1px solid #22c55e; }
     </style>
 </head>
 <body>
 
-    <!-- Login Modal Overlay -->
+    <!-- Login Modal -->
     <div id="loginOverlay">
         <div class="login-card">
             <h3 style="margin-bottom: 10px;">بوابة تحليلات الميزانية</h3>
@@ -109,37 +111,43 @@
         </div>
     </div>
 
+    <!-- Header -->
     <div class="dashboard-header">
         <div>
-            <h2>التقرير التحليلي الشامل للانحرافات المالية والميزانية</h2>
-            <p style="color: var(--text-muted); font-size: 0.85rem;">محرك معالجة البيانات (KNIME Automation Engine)</p>
+            <h2>التقرير التحليلي الشامل والمحلل الذكي للميزانية</h2>
+            <p style="color: var(--text-muted); font-size: 0.85rem;">محرك معالجة البيانات والتنبؤ بالربع القادم (KNIME Engine)</p>
         </div>
         <div>
-            <span id="statusBadge" class="badge" style="background: rgba(34,197,94,0.2); color: #22c55e; border: 1px solid #22c55e; margin-left: 10px;">جاري قراءة الملفات...</span>
+            <span id="statusBadge" class="badge" style="background: rgba(34,197,94,0.2); color: #22c55e; border: 1px solid #22c55e; margin-left: 10px;">جاري القراءة...</span>
             <button onclick="logout()" style="background: transparent; border: 1px solid var(--accent-red); color: var(--accent-red); padding: 5px 15px; border-radius: 20px; cursor: pointer;">خروج</button>
         </div>
     </div>
 
+    <!-- KPIs -->
     <div class="kpi-grid">
         <div class="kpi-card"><span class="kpi-title" style="color: var(--accent-blue);">إجمالي المصروفات</span><h5 class="kpi-value" id="kpiSpend">0 ج.م</h5></div>
         <div class="kpi-card"><span class="kpi-title" style="color: var(--accent-green);">الميزانية المعتمدة</span><h5 class="kpi-value" id="kpiBudget">0 ج.م</h5></div>
         <div class="kpi-card"><span class="kpi-title" style="color: var(--accent-red);">صافي الانحراف</span><h5 class="kpi-value" style="color: var(--accent-red);" id="kpiVariance">0 ج.م</h5></div>
         <div class="kpi-card"><span class="kpi-title" style="color: var(--accent-red);">تجاوزات حرجة</span><h5 class="kpi-value" style="color: var(--accent-red);" id="kpiCritical">0</h5></div>
-        <div class="kpi-card"><span class="kpi-title" style="color: var(--accent-amber);">إنذار مبكر</span><h5 class="kpi-value" style="color: var(--accent-amber);" id="kpiWarning">0</h5></div>
+        <div class="kpi-card"><span class="kpi-title" style="color: var(--accent-amber);">تقدير الميزانية المقترحة Q1</span><h5 class="kpi-value" style="color: var(--accent-green);" id="kpiForecast">0 ج.م</h5></div>
         <div class="kpi-card"><span class="kpi-title" style="color: var(--accent-red);">إجمالي المرفوضات</span><h5 class="kpi-value" style="color: var(--accent-red);" id="kpiRejected">0</h5></div>
     </div>
 
+    <!-- Charts -->
     <div class="charts-grid">
-        <div class="chart-card"><canvas id="barChart"></canvas></div>
+        <div class="chart-card"><canvas id="forecastChart"></canvas></div>
         <div class="chart-card"><canvas id="doughnutChart"></canvas></div>
     </div>
 
+    <!-- Tabs -->
     <div class="tab-buttons">
         <button class="tab-btn active" onclick="switchTab('varianceTab', this)">تقرير الانحرافات الكامل</button>
+        <button class="tab-btn" onclick="switchTab('forecastTab', this)">محلل الميزانية المقترحة (Q1)</button>
         <button class="tab-btn" onclick="switchTab('rejectedAccTab', this)">الحسابات المرفوضة</button>
         <button class="tab-btn" onclick="switchTab('rejectedCCTab', this)">مراكز التكلفة المرفوضة</button>
     </div>
 
+    <!-- Section Card -->
     <div class="section-card">
         <div id="varianceTab" class="tab-content">
             <div class="table-container">
@@ -148,6 +156,17 @@
                         <tr><th>#</th><th>مركز التكلفة</th><th>كود الحساب</th><th>المصروف الفعلي</th><th>الميزانية المعتمدة</th><th>الانحراف المالي</th><th>الحالة</th></tr>
                     </thead>
                     <tbody id="varianceBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="forecastTab" class="tab-content" style="display: none;">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>#</th><th>كود الحساب / المركز</th><th>متوسط الاستهلاك الشهري</th><th>الميزانية المقترحة Q1 (3 أشهر)</th><th>الميزانية بـ +10% معامل أمان</th><th>التوجيه التقديري</th></tr>
+                    </thead>
+                    <tbody id="forecastBody"></tbody>
                 </table>
             </div>
         </div>
@@ -176,7 +195,7 @@
     </div>
 
     <script>
-        let barChartInst = null, doughnutChartInst = null;
+        let forecastChartInst = null, doughnutChartInst = null;
 
         window.onload = function() {
             if (localStorage.getItem("isLoggedIn") === "true") {
@@ -201,10 +220,7 @@
             }
         }
 
-        function logout() {
-            localStorage.clear();
-            location.reload();
-        }
+        function logout() { localStorage.clear(); location.reload(); }
 
         function switchTab(tabId, btn) {
             document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
@@ -230,6 +246,7 @@
                 document.getElementById('statusBadge').innerText = `تم فحص ${variance.length} سجلاً بنجاح`;
 
                 renderVarianceTable(variance);
+                renderForecastTable(variance);
                 renderRejectedTable('rejectedAccBody', rejAcc, 'Account', 'كود الحساب غير معرف في شجرة الحسابات المعتمدة');
                 renderRejectedTable('rejectedCCBody', rejCC, 'CostCenter', 'مركز التكلفة غير مسجل أو مفقود في المعاملات المالية');
 
@@ -270,6 +287,38 @@
                     </tr>
                 `;
             });
+        }
+
+        function renderForecastTable(data) {
+            const tbody = document.getElementById('forecastBody');
+            tbody.innerHTML = '';
+            
+            let accMap = {};
+            data.forEach(r => {
+                const acc = r['Account'] || r['الحساب'] || r['كود الحساب'] || 'غير معرف';
+                const spend = parseFloat(getVal(r, ['Spend', 'المصروف', 'قيمة المصروف'])) || 0;
+                if (!accMap[acc]) accMap[acc] = 0;
+                accMap[acc] += spend;
+            });
+
+            let idx = 1;
+            for (let acc in accMap) {
+                const totalSpend = accMap[acc];
+                const monthlyAvg = totalSpend / 12;
+                const q1Base = monthlyAvg * 3;
+                const q1Safety = q1Base * 1.10;
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${idx++}</td>
+                        <td><b>حساب ${acc}</b></td>
+                        <td>${monthlyAvg.toLocaleString('en-US', {maximumFractionDigits: 2})} ج.م</td>
+                        <td>${q1Base.toLocaleString('en-US', {maximumFractionDigits: 2})} ج.م</td>
+                        <td style="color: var(--accent-green); font-weight: bold;">${q1Safety.toLocaleString('en-US', {maximumFractionDigits: 2})} ج.م</td>
+                        <td><span class="badge badge-success">اعتماد تقديري +10%</span></td>
+                    </tr>
+                `;
+            }
         }
 
         function renderRejectedTable(targetId, data, keyName, defaultReason) {
@@ -314,23 +363,25 @@
                 topAccounts[acc].budget += budget;
             });
 
+            const totalForecastQ1 = (totalSpend / 12) * 3 * 1.10;
+
             document.getElementById('kpiSpend').innerText = totalSpend.toLocaleString('en-US', {maximumFractionDigits: 2}) + ' ج.م';
             document.getElementById('kpiBudget').innerText = totalBudget.toLocaleString('en-US', {maximumFractionDigits: 2}) + ' ج.م';
             document.getElementById('kpiVariance').innerText = '-' + Math.abs(totalSpend - totalBudget).toLocaleString('en-US', {maximumFractionDigits: 2}) + ' ج.م';
             document.getElementById('kpiCritical').innerText = critical;
-            document.getElementById('kpiWarning').innerText = warning;
+            document.getElementById('kpiForecast').innerText = totalForecastQ1.toLocaleString('en-US', {maximumFractionDigits: 2}) + ' ج.م';
             document.getElementById('kpiRejected').innerText = rejAcc.length + rejCC.length;
 
-            const sortedAccs = Object.keys(topAccounts).sort((a,b) => (topAccounts[b].spend - topAccounts[b].budget) - (topAccounts[a].spend - topAccounts[a].budget)).slice(0, 5);
+            const sortedAccs = Object.keys(topAccounts).slice(0, 5);
 
-            if (barChartInst) barChartInst.destroy();
-            barChartInst = new Chart(document.getElementById('barChart'), {
+            if (forecastChartInst) forecastChartInst.destroy();
+            forecastChartInst = new Chart(document.getElementById('forecastChart'), {
                 type: 'bar',
                 data: {
                     labels: sortedAccs.map(a => 'حساب ' + a),
                     datasets: [
-                        { label: 'المصروف الفعلي', data: sortedAccs.map(a => topAccounts[a].spend), backgroundColor: '#ef4444' },
-                        { label: 'الميزانية المعتمدة', data: sortedAccs.map(a => topAccounts[a].budget), backgroundColor: '#22c55e' }
+                        { label: 'المصروف الحالي', data: sortedAccs.map(a => topAccounts[a].spend), backgroundColor: '#ef4444' },
+                        { label: 'الميزانية التقديرية Q1 المقترحة', data: sortedAccs.map(a => (topAccounts[a].spend / 12) * 3 * 1.10), backgroundColor: '#22c55e' }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#fff' } } } }
@@ -340,8 +391,8 @@
             doughnutChartInst = new Chart(document.getElementById('doughnutChart'), {
                 type: 'doughnut',
                 data: {
-                    labels: ['تجاوزات حرجة', 'إنذار مبكر', 'مرفوضات'],
-                    datasets: [{ data: [critical, warning, rejAcc.length + rejCC.length], backgroundColor: ['#ef4444', '#f59e0b', '#6b7280'] }]
+                    labels: ['تجاوزات حرجة', 'ميزانية مقترحة Q1', 'مرفوضات'],
+                    datasets: [{ data: [critical, Math.round(totalForecastQ1 / 100000), rejAcc.length + rejCC.length], backgroundColor: ['#ef4444', '#22c55e', '#6b7280'] }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#fff' } } } }
             });
