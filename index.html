@@ -79,7 +79,6 @@
 
         .section-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; padding: 15px; }
         
-        /* Scroll Configuration */
         .table-container { width: 100%; overflow-y: auto; max-height: 500px; border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; }
         .table-container::-webkit-scrollbar { width: 8px; }
         .table-container::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 4px; }
@@ -114,8 +113,8 @@
     <!-- Header -->
     <div class="dashboard-header">
         <div>
-            <h2>  التقرير التحليلي الشامل والمحلل الذكي للميزانية لمجموعة البنا</h2>
-            <p style="color: var(--text-muted); font-size: 0.85rem;">محرك معالجة البيانات والتنبؤ بالربع القادم (ELBANNA Group)</p>
+            <h2>التقرير التحليلي الشامل والمحلل الذكي للميزانية</h2>
+            <p style="color: var(--text-muted); font-size: 0.85rem;">محرك معالجة البيانات والتنبؤ بالربع القادم (KNIME Engine)</p>
         </div>
         <div>
             <span id="statusBadge" class="badge" style="background: rgba(34,197,94,0.2); color: #22c55e; border: 1px solid #22c55e; margin-left: 10px;">جاري القراءة...</span>
@@ -229,12 +228,24 @@
             btn.classList.add('active');
         }
 
+        // دالة fetch محسنة تكسر كاش المتصفح وتجرب حالات الحروف المختلفة
         async function fetchExcel(file) {
-            const res = await fetch(file);
-            if (!res.ok) throw new Error('Cannot load ' + file);
-            const ab = await res.arrayBuffer();
-            const wb = XLSX.read(new Uint8Array(ab), { type: 'array' });
-            return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+            const timeCache = new Date().getTime();
+            const possibleNames = [file, file.toLowerCase()];
+            
+            for (let fileName of possibleNames) {
+                try {
+                    const res = await fetch(fileName + '?nocache=' + timeCache);
+                    if (res.ok) {
+                        const ab = await res.arrayBuffer();
+                        const wb = XLSX.read(new Uint8Array(ab), { type: 'array' });
+                        return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                    }
+                } catch (e) {
+                    console.log('Retrying file fetch...');
+                }
+            }
+            throw new Error('Could not load ' + file);
         }
 
         async function loadDashboardData() {
