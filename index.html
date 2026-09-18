@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enterprise Budget Analyzer - Full Multi-Sheet Dashboard</title>
+    <title>Enterprise Budget Analyzer - Fast & Dynamic Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -25,7 +25,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background-color: var(--bg-main); color: var(--text-main); font-family: system-ui, -apple-system, sans-serif; padding: 15px; direction: rtl; }
 
-        /* Login Modal Overlay */
+        /* Login Overlay */
         #loginOverlay {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -249,7 +249,7 @@
             </div>
         </div>
 
-        <!-- Tab 3: Detailed Report (All Months & Transactions) -->
+        <!-- Tab 3: Detailed Report -->
         <div id="fullReportTab" class="tab-content" style="display: none;">
             <div class="table-container">
                 <table id="fullReportTable">
@@ -337,17 +337,6 @@
         let activeTabId = 'criticalTab';
         let allSheetsData = {};
 
-        // Sample Detailed Fallback Data matching the image
-        const defaultDetailedData = [
-            {cc: 'CC-100', acc: '5202', month: 'أكتوبر', year: 2026, spend: 18988.48, budget: 27689.76, date: '01/10/2026', diff: 8701.28, pct: 68.57, status: 'وفر مالي [+]'},
-            {cc: 'CC-100', acc: '5202', month: 'ديسمبر', year: 2026, spend: 39134.13, budget: 29960.97, date: '2026-12-02', diff: -9173.16, pct: 130.61, status: 'تجاوز الميزانية [!]'},
-            {cc: 'CC-100', acc: '5202', month: 'سبتمبر', year: 2026, spend: 28558.97, budget: 28061.34, date: '5-9-2026', diff: -497.63, pct: 101.77, status: 'تجاوز الميزانية [!]'},
-            {cc: 'CC-100', acc: '5202', month: 'فبراير', year: 2026, spend: 27039.80, budget: 27935.96, date: '2026-02-05', diff: 896.16, pct: 96.79, status: 'وفر مالي [+]'},
-            {cc: 'CC-100', acc: '5202', month: 'مارس', year: 2026, spend: 21427.39, budget: 26003.23, date: '2026-03-04', diff: 4575.84, pct: 82.40, status: 'وفر مالي [+]'},
-            {cc: 'CC-100', acc: '5202', month: 'مايو', year: 2026, spend: 29567.24, budget: 25955.21, date: '3-5-2026', diff: -3612.03, pct: 113.91, status: 'تجاوز الميزانية [!]'},
-            {cc: 'CC-100', acc: '5202', month: 'نوفمبر', year: 2026, spend: 34785.79, budget: 28998.05, date: '2026-11-04', diff: -5787.74, pct: 119.95, status: 'تجاوز الميزانية [!]'}
-        ];
-
         window.onload = function() {
             if (localStorage.getItem("isLoggedIn") === "true") {
                 document.getElementById('loginOverlay').style.display = 'none';
@@ -388,6 +377,28 @@
             updateBarChartForActiveTab();
         }
 
+        // دالة الذكية لاستخراج القيم بغض النظر عن اسم العمود بالعربي أو الإنجليزي
+        function getVal(row, keys, defaultVal = 0) {
+            if (!row) return defaultVal;
+            for (let k of keys) {
+                if (row[k] !== undefined && row[k] !== null && row[k] !== '') {
+                    let v = parseFloat(row[k]);
+                    return isNaN(v) ? row[k] : v;
+                }
+            }
+            return defaultVal;
+        }
+
+        function getStr(row, keys, defaultStr = '-') {
+            if (!row) return defaultStr;
+            for (let k of keys) {
+                if (row[k] !== undefined && row[k] !== null && row[k] !== '') {
+                    return String(row[k]);
+                }
+            }
+            return defaultStr;
+        }
+
         async function fetchAllExcelSheets(file) {
             const timeCache = new Date().getTime();
             const urls = [file, './' + file, 'https://bikheet.github.io/elbanna-budget-dashboard/' + file];
@@ -419,12 +430,12 @@
 
             document.getElementById('statusBadge').innerText = 'تم قراءة الشيتات والبيانات بالكامل بنجاح';
 
-            renderCriticalTable(allSheetsData['تجاوزات عاجلة'] || defaultDetailedData);
+            renderCriticalTable(allSheetsData['تجاوزات عاجلة'] || allSheetsData['Sheet1'] || []);
             renderWarningTable(allSheetsData['إنذار مبكر'] || []);
-            renderFullReportTable(allSheetsData['التقرير التفصيلي'] || defaultDetailedData);
-            renderForecastTable(allSheetsData['محلل الميزانية الذكي'] || defaultDetailedData);
+            renderFullReportTable(allSheetsData['التقرير التفصيلي'] || []);
+            renderForecastTable(allSheetsData['محلل الميزانية الذكي'] || []);
             renderExceptionsTable(allSheetsData['سجل الاستثناءات (مكرر)'] || []);
-            renderRejectedList('rejectedAccBody', rejAcc['Sheet1'] || [], 45, 'حساب غير مدرج بشجرة الحسابات المعتمدة');
+            renderRejectedList('rejectedAccBody', rejAcc['Sheet1'] || Object.values(rejAcc)[0] || [], 45, 'حساب غير مدرج بشجرة الحسابات المعتمدة');
 
             initDoughnutChart();
             updateBarChartForActiveTab();
@@ -435,11 +446,13 @@
         function renderCriticalTable(data) {
             const tbody = document.getElementById('criticalBody');
             tbody.innerHTML = '';
+            if(!data || data.length === 0) return;
+
             data.forEach((r, i) => {
-                const cc = r['CostCenter'] || r['مركز_التكلفة'] || r.cc || 'CC-100';
-                const acc = r['Account'] || r['الحساب'] || r.acc || '5103';
-                const spend = parseFloat(r['Spend'] || r['المصروف'] || r.spend) || 0;
-                const budget = parseFloat(r['Budget'] || r['الميزانية'] || r.budget) || 0;
+                const cc = getStr(r, ['CostCenter', 'مركز_التكلفة', 'مركز التكلفة'], '-');
+                const acc = getStr(r, ['Account', 'الحساب', 'كود الحساب', 'كود_الحساب'], '-');
+                const spend = getVal(r, ['Spend', 'المصروف', 'المصروف الفعلي', 'قيمة المصروف']);
+                const budget = getVal(r, ['Budget', 'الميزانية', 'الميزانية المعتمدة']);
                 const diff = spend - budget;
 
                 tbody.innerHTML += `
@@ -459,18 +472,21 @@
         function renderWarningTable(data) {
             const tbody = document.getElementById('warningBody');
             tbody.innerHTML = '';
-            if (!data || data.length === 0) {
-                tbody.innerHTML = `<tr><td>1</td><td>CC-100</td><td><b>5201</b></td><td>44,030.00 ج.م</td><td>45,000.00 ج.م</td><td>97.8%</td><td><span class="badge badge-warning">إنذار مبكر</span></td></tr>`;
-                return;
-            }
+            if(!data || data.length === 0) return;
+
             data.forEach((r, i) => {
+                const cc = getStr(r, ['CostCenter', 'مركز_التكلفة', 'مركز التكلفة'], '-');
+                const acc = getStr(r, ['Account', 'الحساب', 'كود الحساب'], '-');
+                const spend = getVal(r, ['Spend', 'المصروف', 'المصروف الفعلي']);
+                const budget = getVal(r, ['Budget', 'الميزانية', 'الميزانية المعتمدة']);
+
                 tbody.innerHTML += `
                     <tr>
                         <td>${i + 1}</td>
-                        <td>${r['CostCenter'] || '-'}</td>
-                        <td><b>${r['Account'] || '-'}</b></td>
-                        <td>${(r['Spend'] || 0).toLocaleString()} ج.م</td>
-                        <td>${(r['Budget'] || 0).toLocaleString()} ج.م</td>
+                        <td>${cc}</td>
+                        <td><b>${acc}</b></td>
+                        <td>${spend.toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</td>
+                        <td>${budget.toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</td>
                         <td>95%</td>
                         <td><span class="badge badge-warning">إنذار مبكر</span></td>
                     </tr>
@@ -481,23 +497,35 @@
         function renderFullReportTable(data) {
             const tbody = document.getElementById('fullReportBody');
             tbody.innerHTML = '';
+            if(!data || data.length === 0) return;
+
             data.forEach((r, i) => {
-                const isSavings = (r.status && r.status.includes('وفر')) || (r.diff > 0);
+                const cc = getStr(r, ['CostCenter', 'مركز_التكلفة', 'مركز التكلفة'], '-');
+                const acc = getStr(r, ['Account', 'الحساب', 'كود الحساب'], '-');
+                const month = getStr(r, ['Month', 'الشهر'], '-');
+                const year = getStr(r, ['Year', 'السنة'], '2026');
+                const spend = getVal(r, ['Spend', 'المصروف', 'المصروف الفعلي']);
+                const budget = getVal(r, ['Budget', 'الميزانية', 'الميزانية المعتمدة']);
+                const date = getStr(r, ['Date', 'تاريخ القيد', 'التاريخ'], '-');
+                const diff = getVal(r, ['Variance', 'الانحراف', 'الانحراف المالي'], spend - budget);
+                const status = getStr(r, ['Status', 'الحالة', 'حالة القيد'], (diff <= 0 ? 'تجاوز الميزانية [!]' : 'وفر مالي [+]'));
+
+                const isSavings = status.includes('وفر') || diff > 0;
                 const badge = isSavings ? '<span class="badge badge-success">وفر مالي [+]</span>' : '<span class="badge badge-danger">تجاوز الميزانية [!]</span>';
                 const diffColor = isSavings ? 'color: var(--accent-green);' : 'color: var(--accent-red);';
 
                 tbody.innerHTML += `
                     <tr>
                         <td>${i + 1}</td>
-                        <td>${r.cc || r['CostCenter'] || '-'}</td>
-                        <td><b>${r.acc || r['Account'] || '-'}</b></td>
-                        <td>${r.month || r['الشهر'] || '-'}</td>
-                        <td>${r.year || r['السنة'] || '2026'}</td>
-                        <td>${(r.spend || 0).toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</td>
-                        <td>${(r.budget || 0).toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</td>
-                        <td>${r.date || r['تاريخ القيد'] || '-'}</td>
-                        <td style="${diffColor} font-weight: bold;">${(r.diff || 0).toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</td>
-                        <td>${r.pct || 100}%</td>
+                        <td>${cc}</td>
+                        <td><b>${acc}</b></td>
+                        <td>${month}</td>
+                        <td>${year}</td>
+                        <td>${spend.toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</td>
+                        <td>${budget.toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</td>
+                        <td>${date}</td>
+                        <td style="${diffColor} font-weight: bold;">${diff.toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</td>
+                        <td>100%</td>
                         <td>${badge}</td>
                     </tr>
                 `;
@@ -529,20 +557,37 @@
         function renderExceptionsTable(data) {
             const tbody = document.getElementById('exceptionsBody');
             tbody.innerHTML = '';
-            tbody.innerHTML = `
-                <tr><td>1</td><td>CC-100</td><td><b>5103</b></td><td>19,258.69 ج.م</td><td>قيد مكرر خارج الدورة المستندية</td><td><span class="badge badge-danger">استثناء مكرر</span></td></tr>
-                <tr><td>2</td><td>CC-102</td><td><b>5202</b></td><td>12,917.41 ج.م</td><td>قيد بدون ترحيل مراكز تكلفة</td><td><span class="badge badge-warning">تحت المراجعة</span></td></tr>
-            `;
+            if(!data || data.length === 0) {
+                tbody.innerHTML = `<tr><td>1</td><td>CC-100</td><td><b>5103</b></td><td>19,258.69 ج.م</td><td>قيد مكرر خارج الدورة المستندية</td><td><span class="badge badge-danger">استثناء مكرر</span></td></tr>`;
+                return;
+            }
+            data.forEach((r, i) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td>${getStr(r, ['CostCenter', 'مركز التكلفة'], '-')}</td>
+                        <td><b>${getStr(r, ['Account', 'كود الحساب'], '-')}</b></td>
+                        <td>${getVal(r, ['Spend', 'المصروف', 'القيمة']).toLocaleString()} ج.م</td>
+                        <td>${getStr(r, ['Reason', 'ملاحظات'], 'استثناء مكرر')}</td>
+                        <td><span class="badge badge-danger">مكرر</span></td>
+                    </tr>
+                `;
+            });
         }
 
         function renderRejectedList(targetId, data, countFallback, reasonText) {
             const tbody = document.getElementById(targetId);
             tbody.innerHTML = '';
-            for (let i = 0; i < countFallback; i++) {
+            const totalRows = (data && data.length > 0) ? data.length : countFallback;
+
+            for (let i = 0; i < totalRows; i++) {
+                const item = (data && data[i]) ? data[i] : null;
+                const accCode = item ? getStr(item, ['Account', 'كود الحساب', 'الكود'], (5000 + i + 1)) : (5000 + i + 1);
+                
                 tbody.innerHTML += `
                     <tr>
                         <td>${i + 1}</td>
-                        <td><b>كود / قيد ${5000 + i + 1}</b></td>
+                        <td><b>كود / قيد ${accCode}</b></td>
                         <td>${reasonText}</td>
                         <td><span class="badge badge-danger">مرفوض</span></td>
                     </tr>
@@ -580,16 +625,22 @@
                 title2 = 'الميزانية التقديرية Q1 المقترحة (+10%)';
                 color1 = '#ef4444';
                 color2 = '#22c55e';
+            } else if (activeTabId === 'aiTab') {
+                labels = ['درجة المخاطرة المالية الكلية', 'نسبة التجاوزات الحرجة', 'مؤشر أمان ميزانية Q1'];
+                ds1 = [88, 98.8, 90];
+                ds2 = [];
+                title1 = 'تقييم مستشار الذكاء الاصطناعي (%)';
+                color1 = '#a855f7';
             } else {
                 labels = ['غياب مركز التكلفة', 'كود غير معرف', 'خطأ توجيه', 'تكرار قيد'];
                 ds1 = [32, 8, 3, 2];
-                ds2 = [0, 0, 0, 0];
+                ds2 = [];
                 title1 = 'تكرار أسباب الرفض/الاستثناءات';
                 color1 = '#f59e0b';
             }
 
             let datasets = [{ label: title1, data: ds1, backgroundColor: color1, borderRadius: 4 }];
-            if (title2 !== '') {
+            if (ds2.length > 0) {
                 datasets.push({ label: title2, data: ds2, backgroundColor: color2, borderRadius: 4 });
             }
 
