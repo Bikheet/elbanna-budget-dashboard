@@ -203,7 +203,7 @@
         </div>
     </div>
 
-    <!-- Multi-Sheet Tabs (Fast Main Tabs + External Link for Detailed Report) -->
+    <!-- Multi-Sheet Tabs -->
     <div class="tab-buttons">
         <button class="tab-btn active" onclick="switchTab('varianceTab', this)">تقرير الانحرافات الكامل</button>
         <button class="tab-btn" onclick="switchTab('warningTab', this)">⚠️ إنذار مبكر</button>
@@ -557,7 +557,15 @@
             let title1 = 'المصروف الفعلي الحقيقي', title2 = 'الميزانية المعتمدة الأصلية';
             let color1 = '#ef4444', color2 = '#38bdf8';
 
-            if (activeTabId === 'forecastTab') {
+            if (activeTabId === 'warningTab') {
+                labels = ['حساب 5201 (إنذار مبكر)', 'حساب إضافي 2', 'حساب إضافي 3'];
+                ds1 = [44030, 31200, 28900];
+                ds2 = [45000, 32000, 30000];
+                title1 = 'المصروف الفعلي';
+                title2 = 'الميزانية المعتمدة';
+                color1 = '#f59e0b';
+                color2 = '#38bdf8';
+            } else if (activeTabId === 'forecastTab') {
                 ds2 = ds1.map(v => (v / 12) * 3 * 1.10);
                 title1 = 'المصروف الحالي (الأساس)';
                 title2 = 'الميزانية التقديرية Q1 المقترحة (+10%)';
