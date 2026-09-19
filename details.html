@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>التقرير التفصيلي الشامل - مجموعة البنا</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -21,7 +22,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background-color: var(--bg-main); color: var(--text-main); font-family: system-ui, -apple-system, sans-serif; padding: 20px; direction: rtl; }
 
-        /* Login Overlay - Strict Guard */
+        /* Login Overlay */
         #loginOverlay {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -43,9 +44,20 @@
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; flex-wrap: wrap; gap: 10px; }
         .btn-custom { padding: 8px 16px; background: var(--accent-blue); color: #0b1329; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; }
         .btn-custom:hover { opacity: 0.9; }
+        
+        /* Chart Container Styling */
+        .chart-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);
+        }
+
         .filter-bar { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center; background: #111827; padding: 12px 15px; border-radius: 8px; border: 1px solid var(--border-card); }
         .form-control { padding: 8px 12px; background: #1c2541; border: 1px solid #4b5563; color: #fff; border-radius: 6px; font-size: 0.85rem; width: 100%; margin: 8px 0; }
-        .table-container { width: 100%; overflow-x: auto; max-height: 70vh; border: 1px solid var(--border-card); border-radius: 8px; background: #111827; }
+        .table-container { width: 100%; overflow-x: auto; max-height: 60vh; border: 1px solid var(--border-card); border-radius: 8px; background: #111827; }
         table { width: 100%; border-collapse: collapse; color: #fff; min-width: 800px; }
         th, td { padding: 10px 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.82rem; white-space: nowrap; }
         th { background: #1f2937; color: var(--accent-blue); position: sticky; top: 0; z-index: 10; }
@@ -58,7 +70,7 @@
 </head>
 <body>
 
-    <!-- Login Modal Overlay (elbanna / 123) -->
+    <!-- Login Modal Overlay -->
     <div id="loginOverlay" style="display: flex;">
         <div class="login-card">
             <h3 style="margin-bottom: 10px;">التقرير التفصيلي - مجموعة البنا</h3>
@@ -82,6 +94,17 @@
             <a href="index.html" class="btn-custom" style="background:#4b5563; color:#fff;"><i class="fa-solid fa-arrow-right"></i> العودة للداش بورد الرئيسية</a>
             <button onclick="exportToExcel()" class="btn-custom" style="background:var(--accent-green); color:#0b1329;"><i class="fa-solid fa-file-excel"></i> تصدير إكسيل</button>
             <button onclick="window.print()" class="btn-custom" style="background:var(--accent-blue); color:#0b1329;"><i class="fa-solid fa-print"></i> طباعة</button>
+        </div>
+    </div>
+
+    <!-- Professional Chart Container -->
+    <div class="chart-box">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="font-size: 1rem; color: var(--accent-blue);"><i class="fa-solid fa-chart-column"></i> مقارنة المصروف الفعلي مقابل الميزانية (حسب السجلات)</h3>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">أحدث السجلات</span>
+        </div>
+        <div style="position: relative; height: 260px; width: 100%;">
+            <canvas id="budgetComparisonChart"></canvas>
         </div>
     </div>
 
@@ -115,6 +138,7 @@
     <script>
         let rawData = [];
         let displayLimit = 100;
+        let myChart = null;
 
         (function checkAuthOnLoad() {
             const authStatus = localStorage.getItem("elbanna_auth_status");
@@ -164,6 +188,7 @@
                     const sheetName = wb.SheetNames.includes('التقرير التفصيلي') ? 'التقرير التفصيلي' : wb.SheetNames[0];
                     rawData = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
                     renderTable();
+                    renderChart();
                 } else {
                     document.getElementById('fullReportBody').innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--accent-red);">تعذر تحميل ملف الإكسيل للتقرير التفصيلي.</td></tr>`;
                 }
@@ -172,16 +197,13 @@
             }
         }
 
-        // دالة محسنة للبحث عن القيم بمختلف أشكال أسماء الأعمدة في الإكسيل
         function getVal(row, possibleKeys, defaultVal = 0) {
             if (!row) return defaultVal;
             for (let k of possibleKeys) {
-                // البحث المباشر
                 if (row[k] !== undefined && row[k] !== null && row[k] !== '') {
                     let v = parseFloat(String(row[k]).replace(/,/g, ''));
                     if (!isNaN(v)) return v;
                 }
-                // البحث متجاهلاً المسافات الزائدة أو الاختلافات البسيطة في الحروف
                 for (let actualKey in row) {
                     if (actualKey.trim().replace(/\s+/g, '') === k.trim().replace(/\s+/g, '')) {
                         let v = parseFloat(String(row[actualKey]).replace(/,/g, ''));
@@ -210,6 +232,60 @@
             return (vals.length > 0 && vals[0]) ? String(vals[0]).trim() : defaultStr;
         }
 
+        function renderChart() {
+            const ctx = document.getElementById('budgetComparisonChart').getContext('2d');
+            
+            // نأخذ أول 15 عينة أو عينة مميزة لعرضها في الرسم البياني بوضوح حتى لا تتزاحم الأعمدة
+            const chartData = rawData.slice(0, 15);
+            const labels = chartData.map((r, i) => `${getStr(r, ['Month'], 'شهر')} (${getStr(r, ['Account'], 'حساب')})`);
+            const spendVals = chartData.map(r => getVal(r, ['Spend', 'المصروف الفعلي', 'المصروف', 'قيمة المصروف', 'Actual']));
+            const budgetVals = chartData.map(r => getVal(r, ['Budget', 'الميزانية المعتمدة', 'الميزانية']));
+
+            if (myChart) {
+                myChart.destroy();
+            }
+
+            myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'المصروف الفعلي',
+                            data: spendVals,
+                            backgroundColor: '#38bdf8',
+                            borderRadius: 6,
+                        },
+                        {
+                            label: 'الميزانية',
+                            data: budgetVals,
+                            backgroundColor: '#4b5563',
+                            borderRadius: 6,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#ffffff', font: { family: 'system-ui', size: 12 } }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#94a3b8', font: { size: 10 } },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                        },
+                        y: {
+                            ticks: { color: '#94a3b8', font: { size: 10 } },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                        }
+                    }
+                }
+            });
+        }
+
         function renderTable() {
             const tbody = document.getElementById('fullReportBody');
             tbody.innerHTML = '';
@@ -221,7 +297,6 @@
                 const month = getStr(r, ['Month', 'الشهر'], 'أكتوبر');
                 const year = getStr(r, ['Year', 'السنة'], '2026');
                 
-                // تم توسيع قائمة احتمالات أسماء أعمدة المصروف والميزانية والانحراف لتطابق أي صيغة في الشيت
                 const spend = getVal(r, ['Spend', 'المصروف الفعلي', 'المصروف', 'قيمة المصروف', 'Actual', 'ActualSpend']);
                 const budget = getVal(r, ['Budget', 'الميزانية المعتمدة', 'الميزانية', 'Budgeted']);
                 
