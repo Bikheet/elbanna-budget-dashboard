@@ -20,11 +20,31 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background-color: var(--bg-main); color: var(--text-main); font-family: system-ui, -apple-system, sans-serif; padding: 20px; direction: rtl; }
+
+        /* Login Overlay */
+        #loginOverlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(11, 19, 41, 0.96);
+            z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .login-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 16px;
+            padding: 2rem;
+            width: 90%; max-width: 400px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            text-align: center;
+        }
+
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; flex-wrap: wrap; gap: 10px; }
         .btn-custom { padding: 8px 16px; background: var(--accent-blue); color: #0b1329; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; }
         .btn-custom:hover { opacity: 0.9; }
         .filter-bar { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center; background: #111827; padding: 12px 15px; border-radius: 8px; border: 1px solid var(--border-card); }
-        .form-control { padding: 8px 12px; background: #1c2541; border: 1px solid #4b5563; color: #fff; border-radius: 6px; font-size: 0.85rem; }
+        .form-control { padding: 8px 12px; background: #1c2541; border: 1px solid #4b5563; color: #fff; border-radius: 6px; font-size: 0.85rem; width: 100%; margin: 8px 0; }
         .table-container { width: 100%; overflow-x: auto; max-height: 70vh; border: 1px solid var(--border-card); border-radius: 8px; background: #111827; }
         table { width: 100%; border-collapse: collapse; color: #fff; min-width: 800px; }
         th, td { padding: 10px 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.82rem; white-space: nowrap; }
@@ -37,6 +57,20 @@
     </style>
 </head>
 <body>
+
+    <!-- Login Modal Overlay -->
+    <div id="loginOverlay">
+        <div class="login-card">
+            <h3 style="margin-bottom: 10px;">التقرير التفصيلي - مجموعة البنا</h3>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">تسجيل الدخول مطلوب</p>
+            <div id="loginError" style="color: var(--accent-red); margin-bottom: 10px; display: none;">اسم المستخدم أو كلمة المرور غير صحيحة</div>
+            <form onsubmit="handleLogin(event)">
+                <input type="text" id="loginUser" class="form-control" placeholder="اسم المستخدم (admin)" required>
+                <input type="password" id="loginPass" class="form-control" placeholder="كلمة المرور (123456)" required>
+                <button type="submit" class="btn-custom" style="width: 100%; justify-content: center; margin-top: 10px;">تسجيل الدخول</button>
+            </form>
+        </div>
+    </div>
 
     <div class="header">
         <div>
@@ -52,7 +86,7 @@
 
     <div class="filter-bar">
         <span style="font-size: 0.85rem; color: var(--accent-blue); font-weight: bold;"><i class="fa-solid fa-filter"></i> بحث متقدم:</span>
-        <input type="text" id="searchInput" onkeyup="filterTable()" class="form-control" style="width: 250px;" placeholder="بحث برقم الحساب، الشهر، أو المركز...">
+        <input type="text" id="searchInput" onkeyup="filterTable()" class="form-control" style="width: 250px; margin:0;" placeholder="بحث برقم الحساب، الشهر، أو المركز...">
         <span id="rowCountDisplay" style="font-size: 0.8rem; color: var(--text-muted); margin-right: auto;">جاري التحميل...</span>
     </div>
 
@@ -81,23 +115,45 @@
         let rawData = [];
         let displayLimit = 100;
 
-        window.onload = async function() {
+        window.onload = function() {
+            if (localStorage.getItem("isLoggedIn") === "true") {
+                document.getElementById('loginOverlay').style.display = 'none';
+                loadDetailsData();
+            } else {
+                document.getElementById('loginOverlay').style.display = 'flex';
+            }
+        };
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('loginUser').value.trim();
+            const p = document.getElementById('loginPass').value.trim();
+
+            if ((u === "admin" || u === "dr.mohamed") && p === "123456") {
+                localStorage.setItem("isLoggedIn", "true");
+                document.getElementById('loginOverlay').style.display = 'none';
+                loadDetailsData();
+            } else {
+                document.getElementById('loginError').style.display = 'block';
+            }
+        }
+
+        async function loadDetailsData() {
             try {
                 const res = await fetch('Final_Budget_Variance_Report.xlsx');
                 if (res.ok) {
                     const ab = await res.arrayBuffer();
                     const wb = XLSX.read(new Uint8Array(ab), { type: 'array' });
-                    // جلب شيت التقرير التفصيلي أو الشيت الافتراضي
                     const sheetName = wb.SheetNames.includes('التقرير التفصيلي') ? 'التقرير التفصيلي' : wb.SheetNames[0];
                     rawData = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
                     renderTable();
                 } else {
-                    document.getElementById('fullReportBody').innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--accent-red);">تعذر تحميل ملف الإكسيل التابع للتقرير التفصيلي.</td></tr>`;
+                    document.getElementById('fullReportBody').innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--accent-red);">تعذر تحميل ملف الإكسيل للتقرير التفصيلي.</td></tr>`;
                 }
             } catch (e) {
                 document.getElementById('fullReportBody').innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--accent-red);">حدث خطأ أثناء قراءة البيانات.</td></tr>`;
             }
-        };
+        }
 
         function getVal(row, keys, defaultVal = 0) {
             if (!row) return defaultVal;
