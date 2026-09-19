@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التقرير التفصيلي الشامل - مجموعة البنا</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-main: #0b1329;
+            --bg-card: #1c2541;
+            --bg-card-hover: #232d4f;
+            --border-card: rgba(255, 255, 255, 0.12);
+            --accent-blue: #38bdf8;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+            --text-main: #ffffff;
+            --text-muted: #94a3b8;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: var(--bg-main); color: var(--text-main); font-family: system-ui, -apple-system, sans-serif; padding: 20px; direction: rtl; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+        .btn-custom { padding: 8px 16px; background: var(--accent-blue); color: #0b1329; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+        .btn-custom:hover { opacity: 0.9; }
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center; background: #111827; padding: 12px 15px; border-radius: 8px; border: 1px solid var(--border-card); }
+        .form-control { padding: 8px 12px; background: #1c2541; border: 1px solid #4b5563; color: #fff; border-radius: 6px; font-size: 0.85rem; }
+        .table-container { width: 100%; overflow-x: auto; max-height: 70vh; border: 1px solid var(--border-card); border-radius: 8px; background: #111827; }
+        table { width: 100%; border-collapse: collapse; color: #fff; min-width: 800px; }
+        th, td { padding: 10px 12px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.82rem; white-space: nowrap; }
+        th { background: #1f2937; color: var(--accent-blue); position: sticky; top: 0; z-index: 10; }
+        tr:hover { background: var(--bg-card-hover); }
+        .badge { padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .badge-danger { background: rgba(239,68,68,0.2); color: #fca5a5; border: 1px solid #ef4444; }
+        .badge-success { background: rgba(34,197,94,0.2); color: #86efac; border: 1px solid #22c55e; }
+        .load-more-btn { display: block; width: 100%; margin-top: 15px; padding: 10px; background: #1f2937; color: var(--accent-blue); border: 1px solid var(--border-card); border-radius: 6px; text-align: center; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div>
+            <h2>📊 التقرير التفصيلي الشامل (Detailed Budget Report)</h2>
+            <p style="color: var(--text-muted); font-size: 0.85rem;">مجموعة البنا - سجلات القيود والمصروفات التفصيلية</p>
+        </div>
+        <div>
+            <a href="index.html" class="btn-custom" style="background:#4b5563; color:#fff;"><i class="fa-solid fa-arrow-right"></i> العودة للداش بورد الرئيسية</a>
+            <button onclick="exportToExcel()" class="btn-custom" style="background:var(--accent-green); color:#0b1329;"><i class="fa-solid fa-file-excel"></i> تصدير إكسيل</button>
+            <button onclick="window.print()" class="btn-custom" style="background:var(--accent-blue); color:#0b1329;"><i class="fa-solid fa-print"></i> طباعة</button>
+        </div>
+    </div>
+
+    <div class="filter-bar">
+        <span style="font-size: 0.85rem; color: var(--accent-blue); font-weight: bold;"><i class="fa-solid fa-filter"></i> بحث متقدم:</span>
+        <input type="text" id="searchInput" onkeyup="filterTable()" class="form-control" style="width: 250px;" placeholder="بحث برقم الحساب، الشهر، أو المركز...">
+        <span id="rowCountDisplay" style="font-size: 0.8rem; color: var(--text-muted); margin-right: auto;">جاري التحميل...</span>
+    </div>
+
+    <div class="table-container">
+        <table id="fullReportTable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>مركز التكلفة</th>
+                    <th>كود الحساب</th>
+                    <th>الشهر</th>
+                    <th>السنة</th>
+                    <th>المصروف الفعلي</th>
+                    <th>الميزانية</th>
+                    <th>تاريخ القيد</th>
+                    <th>الانحراف المالي</th>
+                    <th>حالة القيد</th>
+                </tr>
+            </thead>
+            <tbody id="fullReportBody"></tbody>
+        </table>
+    </div>
+    <button id="loadMoreBtn" class="load-more-btn" onclick="loadMore()">تحميل المزيد من السجلات (+100)</button>
+
+    <script>
+        let rawData = [];
+        let displayLimit = 100;
+
+        window.onload = async function() {
+            try {
+                const res = await fetch('Final_Budget_Variance_Report.xlsx');
+                if (res.ok) {
+                    const ab = await res.arrayBuffer();
+                    const wb = XLSX.read(new Uint8Array(ab), { type: 'array' });
+                    // جلب شيت التقرير التفصيلي أو الشيت الافتراضي
+                    const sheetName = wb.SheetNames.includes('التقرير التفصيلي') ? 'التقرير التفصيلي' : wb.SheetNames[0];
+                    rawData = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
+                    renderTable();
+                } else {
+                    document.getElementById('fullReportBody').innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--accent-red);">تعذر تحميل ملف الإكسيل التابع للتقرير التفصيلي.</td></tr>`;
+                }
+            } catch (e) {
+                document.getElementById('fullReportBody').innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--accent-red);">حدث خطأ أثناء قراءة البيانات.</td></tr>`;
+            }
+        };
+
+        function getVal(row, keys, defaultVal = 0) {
+            if (!row) return defaultVal;
+            for (let k of keys) {
+                if (row[k] !== undefined && row[k] !== null && row[k] !== '') {
+                    let v = parseFloat(String(row[k]).replace(/,/g, ''));
+                    return isNaN(v) ? defaultVal : v;
+                }
+            }
+            return defaultVal;
+        }
+
+        function getStr(row, keys, defaultStr = '-') {
+            if (!row) return defaultStr;
+            for (let k of keys) {
+                if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') {
+                    return String(row[k]).trim();
+                }
+            }
+            const vals = Object.values(row);
+            return (vals.length > 0 && vals[0]) ? String(vals[0]).trim() : defaultStr;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('fullReportBody');
+            tbody.innerHTML = '';
+            
+            const slice = rawData.slice(0, displayLimit);
+            slice.forEach((r, i) => {
+                const cc = getStr(r, ['CostCenter', 'مركز التكلفة', 'مركز_التكلفة'], 'CC-100');
+                const acc = getStr(r, ['Account', 'كود الحساب', 'الحساب'], '5202');
+                const month = getStr(r, ['Month', 'الشهر'], 'أكتوبر');
+                const year = getStr(r, ['Year', 'السنة'], '2026');
+                const spend = getVal(r, ['Spend', 'المصروف', 'المصروف الفعلي']);
+                const budget = getVal(r, ['Budget', 'الميزانية', 'الميزانية المعتمدة']);
+                const date = getStr(r, ['Date', 'تاريخ القيد', 'التاريخ'], '01/10/2026');
+                const diff = getVal(r, ['Variance', 'الانحراف', 'الانحراف المالي'], spend - budget);
+                const status = getStr(r, ['Status', 'الحالة', 'حالة القيد'], (diff <= 0 ? 'تجاوز الميزانية [!]' : 'وفر مالي [+]'));
+
+                const isSavings = status.includes('وفر') || diff > 0;
+                const badge = isSavings ? '<span class="badge badge-success">وفر مالي [+]</span>' : '<span class="badge badge-danger">تجاوز الميزانية [!]</span>';
+                const diffColor = isSavings ? 'color: var(--accent-green);' : 'color: var(--accent-red);';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td>${cc}</td>
+                        <td><b>${acc}</b></td>
+                        <td>${month}</td>
+                        <td>${year}</td>
+                        <td>${spend.toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</td>
+                        <td>${budget.toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</td>
+                        <td>${date}</td>
+                        <td style="${diffColor} font-weight: bold;">${diff.toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</td>
+                        <td>${badge}</td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('rowCountDisplay').innerText = `عرض ${slice.length} من إجمالي ${rawData.length} سجلات`;
+
+            if (displayLimit >= rawData.length) {
+                document.getElementById('loadMoreBtn').style.display = 'none';
+            }
+        }
+
+        function loadMore() {
+            displayLimit += 100;
+            renderTable();
+            filterTable();
+        }
+
+        function filterTable() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const rows = document.querySelectorAll('#fullReportBody tr');
+            let visible = 0;
+
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                if (text.includes(search)) {
+                    row.style.display = '';
+                    visible++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            document.getElementById('rowCountDisplay').innerText = `المعروض بعد الفلترة: ${visible} سجلات`;
+        }
+
+        function exportToExcel() {
+            const table = document.getElementById('fullReportTable');
+            const wb = XLSX.utils.table_to_book(table, { sheet: "Detailed_Report" });
+            XLSX.writeFile(wb, "Detailed_Budget_Report.xlsx");
+        }
+    </script>
+</body>
+</html>
