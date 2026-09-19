@@ -172,22 +172,38 @@
             }
         }
 
-        function getVal(row, keys, defaultVal = 0) {
+        // دالة محسنة للبحث عن القيم بمختلف أشكال أسماء الأعمدة في الإكسيل
+        function getVal(row, possibleKeys, defaultVal = 0) {
             if (!row) return defaultVal;
-            for (let k of keys) {
+            for (let k of possibleKeys) {
+                // البحث المباشر
                 if (row[k] !== undefined && row[k] !== null && row[k] !== '') {
                     let v = parseFloat(String(row[k]).replace(/,/g, ''));
-                    return isNaN(v) ? defaultVal : v;
+                    if (!isNaN(v)) return v;
+                }
+                // البحث متجاهلاً المسافات الزائدة أو الاختلافات البسيطة في الحروف
+                for (let actualKey in row) {
+                    if (actualKey.trim().replace(/\s+/g, '') === k.trim().replace(/\s+/g, '')) {
+                        let v = parseFloat(String(row[actualKey]).replace(/,/g, ''));
+                        if (!isNaN(v)) return v;
+                    }
                 }
             }
             return defaultVal;
         }
 
-        function getStr(row, keys, defaultStr = '-') {
+        function getStr(row, possibleKeys, defaultStr = '-') {
             if (!row) return defaultStr;
-            for (let k of keys) {
+            for (let k of possibleKeys) {
                 if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') {
                     return String(row[k]).trim();
+                }
+                for (let actualKey in row) {
+                    if (actualKey.trim().replace(/\s+/g, '') === k.trim().replace(/\s+/g, '')) {
+                        if (row[actualKey] !== undefined && row[actualKey] !== null && String(row[actualKey]).trim() !== '') {
+                            return String(row[actualKey]).trim();
+                        }
+                    }
                 }
             }
             const vals = Object.values(row);
@@ -200,14 +216,17 @@
             
             const slice = rawData.slice(0, displayLimit);
             slice.forEach((r, i) => {
-                const cc = getStr(r, ['CostCenter', 'مركز التكلفة', 'مركز_التكلفة'], 'CC-100');
-                const acc = getStr(r, ['Account', 'كود الحساب', 'الحساب'], '5202');
+                const cc = getStr(r, ['CostCenter', 'مركز التكلفة', 'مركز_التكلفة', 'مركز تكلفة'], 'CC-100');
+                const acc = getStr(r, ['Account', 'كود الحساب', 'الحساب', 'كود_الحساب'], '5202');
                 const month = getStr(r, ['Month', 'الشهر'], 'أكتوبر');
                 const year = getStr(r, ['Year', 'السنة'], '2026');
-                const spend = getVal(r, ['Spend', 'المصروف', 'المصروف الفعلي']);
-                const budget = getVal(r, ['Budget', 'الميزانية', 'الميزانية المعتمدة']);
+                
+                // تم توسيع قائمة احتمالات أسماء أعمدة المصروف والميزانية والانحراف لتطابق أي صيغة في الشيت
+                const spend = getVal(r, ['Spend', 'المصروف الفعلي', 'المصروف', 'قيمة المصروف', 'Actual', 'ActualSpend']);
+                const budget = getVal(r, ['Budget', 'الميزانية المعتمدة', 'الميزانية', 'Budgeted']);
+                
                 const date = getStr(r, ['Date', 'تاريخ القيد', 'التاريخ'], '01/10/2026');
-                const diff = getVal(r, ['Variance', 'الانحراف', 'الانحراف المالي'], spend - budget);
+                const diff = getVal(r, ['Variance', 'الانحراف المالي', 'الانحراف'], spend - budget);
                 const status = getStr(r, ['Status', 'الحالة', 'حالة القيد'], (diff <= 0 ? 'تجاوز الميزانية [!]' : 'وفر مالي [+]'));
 
                 const isSavings = status.includes('وفر') || diff > 0;
