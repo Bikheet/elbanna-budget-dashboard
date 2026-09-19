@@ -25,12 +25,12 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background-color: var(--bg-main); color: var(--text-main); font-family: system-ui, -apple-system, sans-serif; padding: 15px; direction: rtl; }
 
-        /* Login Overlay */
+        /* Login Overlay - Strict Guard */
         #loginOverlay {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(11, 19, 41, 0.96);
-            z-index: 9999;
+            background: rgba(11, 19, 41, 0.98);
+            z-index: 99999;
             display: flex; align-items: center; justify-content: center;
         }
 
@@ -40,7 +40,7 @@
             border-radius: 16px;
             padding: 2rem;
             width: 90%; max-width: 400px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
             text-align: center;
         }
 
@@ -153,15 +153,15 @@
 </head>
 <body>
 
-    <!-- Login Modal Overlay -->
+    <!-- Login Modal Overlay (elbanna / 123) -->
     <div id="loginOverlay">
         <div class="login-card">
             <h3 style="margin-bottom: 10px;">بوابة تحليلات الميزانية</h3>
             <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">تسجيل الدخول للنظام المالي</p>
             <div id="loginError" style="color: var(--accent-red); margin-bottom: 10px; display: none;">اسم المستخدم أو كلمة المرور غير صحيحة</div>
             <form onsubmit="handleLogin(event)">
-                <input type="text" id="loginUser" class="form-control" placeholder="اسم المستخدم (admin)" required>
-                <input type="password" id="loginPass" class="form-control" placeholder="كلمة المرور (123456)" required>
+                <input type="text" id="loginUser" class="form-control" placeholder="اسم المستخدم (elbanna)" required>
+                <input type="password" id="loginPass" class="form-control" placeholder="كلمة المرور (123)" required>
                 <button type="submit" class="btn-custom" style="width: 100%; justify-content: center; margin-top: 10px;">تسجيل الدخول</button>
             </form>
         </div>
@@ -222,9 +222,9 @@
         <!-- Multi-Filter Control Bar -->
         <div class="filter-bar" id="filterBarContainer">
             <span style="font-size: 0.85rem; color: var(--accent-blue); font-weight: bold;"><i class="fa-solid fa-filter"></i> الفلترة والبحث:</span>
-            <input type="text" id="searchInput" onkeyup="filterCurrentTable()" class="form-control" style="width: 220px;" placeholder="بحث برقم الحساب أو المركز...">
+            <input type="text" id="searchInput" onkeyup="filterCurrentTable()" class="form-control" style="width: 220px; margin:0;" placeholder="بحث برقم الحساب أو المركز...">
             
-            <select id="statusFilter" onchange="filterCurrentTable()" class="form-control" style="width: 170px;">
+            <select id="statusFilter" onchange="filterCurrentTable()" class="form-control" style="width: 170px; margin:0;">
                 <option value="">جميع الحالات</option>
                 <option value="تجاوز خطير">تجاوز خطير</option>
                 <option value="تجاوز الميزانية">تجاوز الميزانية [!]</option>
@@ -324,6 +324,7 @@
         let rawVarianceData = [];
         let displayLimitVariance = 50;
 
+        // التحقق من حالة تسجيل الدخول فور تحميل الصفحة
         window.onload = function() {
             if (localStorage.getItem("isLoggedIn") === "true") {
                 document.getElementById('loginOverlay').style.display = 'none';
@@ -338,7 +339,7 @@
             const u = document.getElementById('loginUser').value.trim();
             const p = document.getElementById('loginPass').value.trim();
 
-            if ((u === "admin" || u === "dr.mohamed") && p === "123456") {
+            if (u === "elbanna" && p === "123") {
                 localStorage.setItem("isLoggedIn", "true");
                 document.getElementById('loginOverlay').style.display = 'none';
                 loadDashboardData();
@@ -347,7 +348,10 @@
             }
         }
 
-        function logout() { localStorage.clear(); location.reload(); }
+        function logout() { 
+            localStorage.clear(); 
+            location.reload(); 
+        }
 
         function switchTab(tabId, btn) {
             activeTabId = tabId;
