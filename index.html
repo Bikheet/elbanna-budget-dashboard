@@ -153,7 +153,7 @@
 </head>
 <body>
 
-    <!-- Login Modal Overlay (Elbanna Group ) -->
+    <!-- Login Modal Overlay (Elbanna Group) -->
     <div id="loginOverlay" style="display: flex;">
         <div class="login-card">
             <h3 style="margin-bottom: 10px;">بوابة تحليلات الميزانية</h3>
@@ -323,6 +323,7 @@
         let mainBarChartInst = null, doughnutChartInst = null;
         let activeTabId = 'varianceTab';
         let rawVarianceData = [];
+        let warningDataCache = [];
         let displayLimitVariance = 50;
 
         // التحقق الإجباري والصارم من حالة الدخول فور تحميل الصفحة
@@ -385,12 +386,19 @@
             updateBarChartForActiveTab();
         }
 
-        function getVal(row, keys, defaultVal = 0) {
+        // دالة شاملة ومرنة لقراءة القيم وتجنب ظهور الأصفار
+        function getVal(row, possibleKeys, defaultVal = 0) {
             if (!row) return defaultVal;
-            for (let k of keys) {
+            for (let k of possibleKeys) {
                 if (row[k] !== undefined && row[k] !== null && row[k] !== '') {
                     let v = parseFloat(String(row[k]).replace(/,/g, ''));
-                    return isNaN(v) ? defaultVal : v;
+                    if (!isNaN(v)) return v;
+                }
+                for (let actualKey in row) {
+                    if (actualKey.trim().replace(/\s+/g, '') === k.trim().replace(/\s+/g, '')) {
+                        let v = parseFloat(String(row[actualKey]).replace(/,/g, ''));
+                        if (!isNaN(v)) return v;
+                    }
                 }
             }
             return defaultVal;
@@ -401,6 +409,12 @@
             for (let k of keys) {
                 if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') {
                     return String(row[k]).trim();
+                }
+                for (let actualKey in row) {
+                    if (actualKey.trim().replace(/\s+/g, '') === k.trim().replace(/\s+/g, '')) {
+                        let val = String(row[actualKey]).trim();
+                        if (val !== '') return val;
+                    }
                 }
             }
             const vals = Object.values(row);
@@ -437,11 +451,12 @@
             document.getElementById('lastSyncTime').innerText = `| أحدث تحديث: اليوم ${timeStr}`;
 
             rawVarianceData = sheets['Sheet1'] || sheets['تجاوزات عاجلة'] || sheets['التقرير التفصيلي'] || Object.values(sheets)[0] || [];
+            warningDataCache = sheets['إنذار مبكر'] || sheets['Warning'] || [];
 
             document.getElementById('statusBadge').innerText = `تم فحص ${rawVarianceData.length} سجلاً بنجاح`;
 
             renderVarianceTable();
-            renderWarningTable(sheets['إنذار مبكر'] || []);
+            renderWarningTable(warningDataCache);
             renderForecastTable(rawVarianceData);
             renderRejectedList('rejectedAccBody', rejSheets['Sheet1'] || Object.values(rejSheets)[0] || [], 45, 'حساب غير مدرج بشجرة الحسابات المعتمدة');
 
@@ -459,8 +474,8 @@
             slice.forEach((r, i) => {
                 const cc = getStr(r, ['CostCenter', 'مركز التكلفة', 'مركز_التكلفة', 'مركز تكلفة'], 'CC-100');
                 const acc = getStr(r, ['Account', 'كود الحساب', 'الحساب', 'كود_الحساب'], '5103');
-                const spend = getVal(r, ['Spend', 'المصروف', 'المصروف الفعلي', 'قيمة المصروف']);
-                const budget = getVal(r, ['Budget', 'الميزانية', 'الميزانية المعتمدة']);
+                const spend = getVal(r, ['Spend', 'المصروف', 'المصروف الفعلي', 'قيمة المصروف', 'Actual', 'ActualSpend']);
+                const budget = getVal(r, ['Budget', 'الميزانية', 'الميزانية المعتمدة', 'Budgeted']);
                 const diff = spend - budget;
 
                 tbody.innerHTML += `
@@ -489,19 +504,20 @@
                 return;
             }
             data.forEach((r, i) => {
-                const cc = getStr(r, ['CostCenter', 'مركز التكلفة'], 'CC-100');
-                const acc = getStr(r, ['Account', 'كود الحساب'], '5201');
-                const spend = getVal(r, ['Spend', 'المصروف']);
-                const budget = getVal(r, ['Budget', 'الميزانية']);
+                const cc = getStr(r, ['CostCenter', 'مركز التكلفة', 'مركز تكلفة'], 'CC-100');
+                const acc = getStr(r, ['Account', 'كود الحساب', 'الحساب'], '5201');
+                const spend = getVal(r, ['Spend', 'المصروف', 'المصروف الفعلي', 'قيمة المصروف', 'Actual']);
+                const budget = getVal(r, ['Budget', 'الميزانية', 'الميزانية المعتمدة', 'Budgeted']);
+                const ratio = budget > 0 ? ((spend / budget) * 100).toFixed(1) + '%' : '95%';
 
                 tbody.innerHTML += `
                     <tr>
                         <td>${i + 1}</td>
                         <td>${cc}</td>
                         <td><b>${acc}</b></td>
-                        <td>${spend.toLocaleString()} ج.م</td>
-                        <td>${budget.toLocaleString()} ج.م</td>
-                        <td>95%</td>
+                        <td>${spend.toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</td>
+                        <td>${budget.toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</td>
+                        <td>${ratio}</td>
                         <td><span class="badge badge-warning">إنذار مبكر</span></td>
                     </tr>
                 `;
@@ -515,7 +531,7 @@
             let accMap = {};
             data.forEach(r => {
                 const acc = getStr(r, ['Account', 'كود الحساب', 'الحساب'], '5103');
-                const spend = getVal(r, ['Spend', 'المصروف', 'المصروف الفعلي']);
+                const spend = getVal(r, ['Spend', 'المصروف', 'المصروف الفعلي', 'قيمة المصروف', 'Actual']);
                 if (!accMap[acc]) accMap[acc] = 0;
                 accMap[acc] += spend;
             });
