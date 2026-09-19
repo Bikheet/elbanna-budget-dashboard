@@ -29,7 +29,7 @@
         #loginOverlay {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(11, 19, 41, 0.98);
+            background: rgba(11, 19, 41, 0.99);
             z-index: 99999;
             display: flex; align-items: center; justify-content: center;
         }
@@ -154,16 +154,17 @@
 <body>
 
     <!-- Login Modal Overlay (elbanna / 123) -->
-    <div id="loginOverlay">
+    <div id="loginOverlay" style="display: flex;">
         <div class="login-card">
             <h3 style="margin-bottom: 10px;">بوابة تحليلات الميزانية</h3>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">تسجيل الدخول للنظام المالي</p>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">تسجيل الدخول للنظام المالي (elbanna / 123)</p>
             <div id="loginError" style="color: var(--accent-red); margin-bottom: 10px; display: none;">اسم المستخدم أو كلمة المرور غير صحيحة</div>
             <form onsubmit="handleLogin(event)">
-                <input type="text" id="loginUser" class="form-control" placeholder="اسم المستخدم (elbanna)" required>
-                <input type="password" id="loginPass" class="form-control" placeholder="كلمة المرور (123)" required>
+                <input type="text" id="loginUser" class="form-control" placeholder="اسم المستخدم" required autocomplete="username">
+                <input type="password" id="loginPass" class="form-control" placeholder="كلمة المرور" required autocomplete="current-password">
                 <button type="submit" class="btn-custom" style="width: 100%; justify-content: center; margin-top: 10px;">تسجيل الدخول</button>
             </form>
+            <button onclick="forceResetSession()" style="background:transparent; border:none; color:var(--text-muted); font-size:0.75rem; margin-top:12px; cursor:pointer; text-decoration:underline;">مسح الذاكرة المؤقتة وإعادة تعيين</button>
         </div>
     </div>
 
@@ -324,9 +325,19 @@
         let rawVarianceData = [];
         let displayLimitVariance = 50;
 
-        // التحقق من حالة تسجيل الدخول فور تحميل الصفحة
+        // التحقق الإجباري والصارم من حالة الدخول فور تحميل الصفحة
+        (function checkAuthOnLoad() {
+            const authStatus = localStorage.getItem("elbanna_auth_status");
+            const overlay = document.getElementById('loginOverlay');
+            if (authStatus === "authenticated") {
+                if (overlay) overlay.style.display = 'none';
+            } else {
+                if (overlay) overlay.style.display = 'flex';
+            }
+        })();
+
         window.onload = function() {
-            if (localStorage.getItem("isLoggedIn") === "true") {
+            if (localStorage.getItem("elbanna_auth_status") === "authenticated") {
                 document.getElementById('loginOverlay').style.display = 'none';
                 loadDashboardData();
             } else {
@@ -340,7 +351,7 @@
             const p = document.getElementById('loginPass').value.trim();
 
             if (u === "elbanna" && p === "123") {
-                localStorage.setItem("isLoggedIn", "true");
+                localStorage.setItem("elbanna_auth_status", "authenticated");
                 document.getElementById('loginOverlay').style.display = 'none';
                 loadDashboardData();
             } else {
@@ -349,8 +360,14 @@
         }
 
         function logout() { 
-            localStorage.clear(); 
+            localStorage.removeItem("elbanna_auth_status"); 
             location.reload(); 
+        }
+
+        function forceResetSession() {
+            localStorage.clear();
+            alert("تم مسح الذاكرة بنجاح. يرجى إدخال اسم المستخدم elbanna وكلمة المرور 123");
+            location.reload();
         }
 
         function switchTab(tabId, btn) {
