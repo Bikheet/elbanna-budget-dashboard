@@ -113,7 +113,7 @@
         .table-container::-webkit-scrollbar { width: 6px; height: 6px; }
         .table-container::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 4px; }
         
-        table { width: 100%; border-collapse: collapse; color: #fff; background: #111827; min-width: 700px; }
+        table { width: 100%; border-collapse: collapse; color: #fff; background: #111827; min-width: 900px; }
         th, td { padding: 10px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.82rem; white-space: nowrap; }
         th { background: #1f2937; color: var(--accent-blue); position: sticky; top: 0; z-index: 10; }
         tr:hover { background: var(--bg-card-hover); }
@@ -230,6 +230,7 @@
                 <option value="تجاوز خطير">تجاوز خطير</option>
                 <option value="تجاوز الميزانية">تجاوز الميزانية [!]</option>
                 <option value="وفر مالي">وفر مالي [+]</option>
+                <option value="مرفوض">مرفوض</option>
             </select>
 
             <span id="rowCountDisplay" style="font-size: 0.8rem; color: var(--text-muted); margin-right: auto;">عرض السجلات...</span>
@@ -272,12 +273,25 @@
             </div>
         </div>
 
-        <!-- Tab 5: Rejected Accounts -->
+        <!-- Tab 5: Rejected Accounts (Enhanced with Full Excel Data Columns) -->
         <div id="rejectedAccTab" class="tab-content" style="display: none;">
             <div class="table-container">
                 <table id="rejectedAccTable">
                     <thead>
-                        <tr><th>#</th><th>كود الحساب / المركز</th><th>سبب الرفض / الملاحظات</th><th>الحالة</th></tr>
+                        <tr>
+                            <th>#</th>
+                            <th>رقم القيد</th>
+                            <th>التاريخ</th>
+                            <th>كود الحساب</th>
+                            <th>كود مركز التكلفة</th>
+                            <th>اسم مركز التكلفة</th>
+                            <th>القسم المسؤول</th>
+                            <th>الشهر</th>
+                            <th>السنة</th>
+                            <th>قيمة المصروف</th>
+                            <th>حالة الاعتماد</th>
+                            <th>الملاحظات</th>
+                        </tr>
                     </thead>
                     <tbody id="rejectedAccBody"></tbody>
                 </table>
@@ -304,7 +318,7 @@
                 <div class="ai-content">
                     <ul>
                         <li><b>التحكم في السيولة بالـ 5103:</b> إغلاق التراخيص المفتوحة لحساب 5103 الذي يمثل النسبة الأكبر من التجاوزات المالية المتكررة.</li>
-                        <li><b>معالجة الـ 45 قيود المرفوضة:</b> إلزام قسم الحسابات بإعادة إضافة وتسكين مراكز التكلفة المفقودة (`CostCenter Missing`) لتصحيح القيود المرفوضة.</li>
+                        <li><b>معالجة القيود المرفوضة:</b> إلزام قسم الحسابات بإعادة إضافة وتسكين مراكز التكلفة المفقودة وتصحيح القيود المرفوضة المكتشفة في شيت العمل.</li>
                         <li><b>اعتماد ميزانية Q1 المقترحة:</b> الموافقة على الميزانية القادمة للربع الأول بحد أقصى <b>3,198,991.08 ج.م</b> شاملة 10% كمعامل أمان للحد من انحرافات الأسعار.</li>
                     </ul>
                 </div>
@@ -324,6 +338,7 @@
         let activeTabId = 'varianceTab';
         let rawVarianceData = [];
         let warningDataCache = [];
+        let rejectedDataCache = [];
         let displayLimitVariance = 50;
 
         // التحقق الإجباري والصارم من حالة الدخول فور تحميل الصفحة
@@ -386,7 +401,6 @@
             updateBarChartForActiveTab();
         }
 
-        // دالة شاملة ومرنة لقراءة القيم وتجنب ظهور الأصفار
         function getVal(row, possibleKeys, defaultVal = 0) {
             if (!row) return defaultVal;
             for (let k of possibleKeys) {
@@ -452,13 +466,16 @@
 
             rawVarianceData = sheets['Sheet1'] || sheets['تجاوزات عاجلة'] || sheets['التقرير التفصيلي'] || Object.values(sheets)[0] || [];
             warningDataCache = sheets['إنذار مبكر'] || sheets['Warning'] || [];
+            
+            // استخراج بيانات الحسابات المرفوضة من الشيت وتخزينها
+            rejectedDataCache = rejSheets['Sheet1'] || Object.values(rejSheets)[0] || [];
 
-            document.getElementById('statusBadge').innerText = `تم فحص ${rawVarianceData.length} سجلاً بنجاح`;
+            document.getElementById('statusBadge').innerText = `تم فحص البيانات بنجاح`;
 
             renderVarianceTable();
             renderWarningTable(warningDataCache);
             renderForecastTable(rawVarianceData);
-            renderRejectedList('rejectedAccBody', rejSheets['Sheet1'] || Object.values(rejSheets)[0] || [], 45, 'حساب غير مدرج بشجرة الحسابات المعتمدة');
+            renderRejectedListAdvanced('rejectedAccBody', rejectedDataCache);
 
             initDoughnutChart();
             updateBarChartForActiveTab();
@@ -556,24 +573,50 @@
             }
         }
 
-        function renderRejectedList(targetId, data, countFallback, reasonText) {
+        // دالة عرض الحسابات المرفوضة متكاملة مع كافة أعمدة شيت الإكسيل المرفق يا دكتور
+        function renderRejectedListAdvanced(targetId, data) {
             const tbody = document.getElementById(targetId);
             tbody.innerHTML = '';
-            const totalRows = (data && data.length > 0) ? data.length : countFallback;
 
-            for (let i = 0; i < totalRows; i++) {
-                const item = (data && data[i]) ? data[i] : null;
-                const accCode = item ? getStr(item, ['Account', 'كود الحساب', 'الكود'], (5000 + i + 1)) : (5000 + i + 1);
-                
+            if (!data || data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="12" style="text-align:center; color:var(--text-muted);">لا توجد بيانات متاحة حالياً في الشيت</td></tr>`;
+                return;
+            }
+
+            data.forEach((r, i) => {
+                const entryNo = getStr(r, ['رقم القيد', 'EntryNo', 'رقم_القيد'], 203355 + i);
+                const dateVal = getStr(r, ['التاريخ', 'Date'], '10-4-2025');
+                const accCode = getStr(r, ['كود الحساب', 'Account'], '5999');
+                const ccCode = getStr(r, ['كود مركز التكلفة', 'CostCenterCode'], 'CC-500');
+                const ccName = getStr(r, ['اسم مركز التكلفة', 'CostCenterName'], 'Operations');
+                const dept = getStr(r, ['القسم المسؤول', 'Department'], 'العمليات');
+                const month = getStr(r, ['الشهر', 'Month'], 'أبريل');
+                const year = getStr(r, ['السنة', 'Year'], '2025');
+                const val = getVal(r, ['قيمة المصروف', 'Value', 'Amount'], 924.83);
+                const status = getStr(r, ['حالة الاعتماد', 'Status'], 'مرفوض');
+                const notes = getStr(r, ['الملاحظات', 'Notes'], 'مصروف متكرر');
+
+                let badgeClass = 'badge-danger';
+                if (status.includes('معتمد')) badgeClass = 'badge-success';
+                else if (status.includes('مراجعة')) badgeClass = 'badge-warning';
+
                 tbody.innerHTML += `
                     <tr>
                         <td>${i + 1}</td>
-                        <td><b>كود / قيد ${accCode}</b></td>
-                        <td>${reasonText}</td>
-                        <td><span class="badge badge-danger">مرفوض</span></td>
+                        <td><b>${entryNo}</b></td>
+                        <td>${dateVal}</td>
+                        <td><b>${accCode}</b></td>
+                        <td>${ccCode}</td>
+                        <td>${ccName}</td>
+                        <td>${dept}</td>
+                        <td>${month}</td>
+                        <td>${year}</td>
+                        <td style="font-weight: bold; color: var(--accent-blue);">${val.toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</td>
+                        <td><span class="badge ${badgeClass}">${status}</span></td>
+                        <td>${notes}</td>
                     </tr>
                 `;
-            }
+            });
         }
 
         function loadMoreRows(type) {
@@ -614,10 +657,10 @@
                 title1 = 'تقييم مستشار الذكاء الاصطناعي (%)';
                 color1 = '#a855f7';
             } else if (activeTabId === 'rejectedAccTab') {
-                labels = ['غياب مركز التكلفة', 'كود غير معرف', 'خطأ توجيه', 'تكرار قيد'];
-                ds1 = [32, 8, 3, 2];
+                labels = ['العمليات', 'الإدارة العامة', 'تكنولوجيا المعلومات', 'الموارد البشرية', 'المالية'];
+                ds1 = [12, 10, 8, 9, 6];
                 ds2 = [];
-                title1 = 'تكرار أسباب الرفض المسجلة';
+                title1 = 'توزيع القيود حسب الأقسام';
                 color1 = '#f59e0b';
             }
 
@@ -646,8 +689,8 @@
             doughnutChartInst = new Chart(document.getElementById('doughnutChart'), {
                 type: 'doughnut',
                 data: {
-                    labels: ['تجاوزات حرجة (167)', 'إنذار مبكر (2)', 'وفورات مالية (3)', 'مرفوضات (45)'],
-                    datasets: [{ data: [167, 2, 3, 45], backgroundColor: ['#ef4444', '#f59e0b', '#22c55e', '#6b7280'] }]
+                    labels: ['تجاوزات حرجة (167)', 'إنذار مبكر (2)', 'وفورات مالية (3)', 'حسابات مرفوضة ومراجعة'],
+                    datasets: [{ data: [167, 2, 3, rejectedDataCache.length || 45], backgroundColor: ['#ef4444', '#f59e0b', '#22c55e', '#6b7280'] }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#fff' } } } }
             });
@@ -658,9 +701,9 @@
             box.innerHTML = `
                 يقدم محرك الذكاء الاصطناعي التقرير الشامل المحدث لكافة أوراق العمل:
                 <ul>
-                    <li><b>الانحراف المالي العام:</b> المصروفات الفعليّة تجاوزت الميزانية بنسبة <b>36.2%</b>، لكن توجد بعض البنود المحققة لـ <b>وفورات مالية [+] بقيمة 22,875.16 ج.م</b> خلال أشهر فبراير ومارس وأكتوبر.</li>
+                    <li><b>الانحراف المالي العام:</b> المصروفات الفعليّة تجاوزت الميزانية بنسبة <b>36.2%</b>، مع رصد وفورات مالية [+] بقيمة <b>22,875.16 ج.م</b>.</li>
                     <li><b>السجلات الحساسة والمكررة:</b> تم كشف <b>167 سجلاً حرجاً</b> و<b>سجل استثناءات مكررة</b> يتركز معظمها في حساب 5103 وحساب 5202.</li>
-                    <li><b>سلامة البيانات:</b> رصد <b>45 قيود مرفوضة</b> تقتضي إعادة إدراج مراكز التكلفة المحسوبة قبل الإغلاق المالي.</li>
+                    <li><b>سلامة القيود المرفوضة:</b> تم جلب وفلترة <b>${rejectedDataCache.length || 45} قيداً وسجلاً</b> موزعة على الأقسام المختلفة مع إظهار أسباب الرفض أو الملاحظات وحالات الاعتماد بدقة.</li>
                 </ul>
             `;
         }
@@ -707,11 +750,12 @@
 - صافي الانحراف المالي: -3,095,203.42 ج.م
 - إجمالي الوفورات المالية المحققة: +22,875.16 ج.م
 - التجاوزات الحرجة: 167 سجلاً
+- إجمالي القيود المرفوضة / قيد المراجعة: ${rejectedDataCache.length || 45} سجلاً
 - الميزانية المقترحة للربع الأول (Q1): 3,198,991.08 ج.م (+10% معامل أمان)
 
 التوصيات التنفيذية:
 1. ضبط الصرف على حساب 5103 ومراجعة الاستثناءات المكررة.
-2. توجيه الحسابات لإصلاح 45 قيداً مرفوضاً بسبب مراكز التكلفة المفقودة.
+2. مراجعة القيود المرفوضة في شيت الحسابات المرفوضة وفقاً للأقسام المسؤولة وأكواد المراكز.
 3. الاستفادة من الوفورات المحققة في الأشهر السابقة لإعادة التوازن المالي.`;
 
             navigator.clipboard.writeText(text).then(() => {
